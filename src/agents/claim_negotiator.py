@@ -3,7 +3,8 @@ from src.voice.hume_integration import HumeEmotionAnalysisTool, VoiceResponseGen
 from src.tools.policy_tools import PolicyLookupTool
 from src.tools.claim_tools import ClaimValidationTool
 from src.tools.precedent_tools import PrecedentAnalysisTool
-from src.tools.compliance_tools import ComplianceCheckTool, SettlementOfferTool
+from src.tools.compliance_tools import ComplianceCheckTool
+from src.tools.settlement_tools import SettlementOfferTool
 from portia.tool_registry import ToolRegistry
 from typing import Dict, Any, List
 import logging
@@ -72,15 +73,19 @@ class ClaimNegotiationAgent(BaseInsuranceAgent):
         - Prepare escalation if needed
         
         Claim Details: {claim_data}
-        Audio Context: Customer voice input provided
+        Audio Data: Will be provided as plan input
         """
         
         try:
             # Execute comprehensive pipeline
-            plan = self.portia.plan(pipeline_plan)
+            plan = self.portia.plan(
+                pipeline_plan,
+                plan_inputs=[{"name": "audio_data", "description": "Audio data to analyze"}]
+            )
             plan_run = self.portia.run_plan(
                 plan,
-                end_user=claim_data.get('customer_id', 'anonymous')
+                end_user=claim_data.get('customer_id', 'anonymous'),
+                plan_run_inputs={"audio_data": audio_data}
             )
             
             # Extract comprehensive results
@@ -119,9 +124,13 @@ class ClaimNegotiationAgent(BaseInsuranceAgent):
         
         # First analyze the emotional context
         emotion_plan = self.portia.plan(
-            f"Analyze customer emotion from voice input for claim {claim_context.get('claim_id')}"
+            f"Analyze customer emotion from voice input for claim {claim_context.get('claim_id')}",
+            plan_inputs=[{"name": "audio_data", "description": "Audio data to analyze"}]
         )
-        emotion_run = self.portia.run_plan(emotion_plan)
+        emotion_run = self.portia.run_plan(
+            emotion_plan,
+            plan_run_inputs={"audio_data": audio_data}
+        )
         
         # Extract emotion data and incorporate into claim processing
         emotion_result = getattr(emotion_run.outputs, 'final_output', {}).get('value', {}) if hasattr(emotion_run, 'outputs') else {}

@@ -89,9 +89,9 @@ Every decision includes reasoning that can be explained to courts, regulators, o
 │                 │    │ │ • ActionClarification          │ │    │                 │
 │                 │    │ │ • UserVerificationClarification│ │    │                 │
 │                 │    │ │ • MultipleChoiceClarification  │ │    │                 │
-│                 │    │ │ • Human-in-the-Loop Handoffs  │ │    │                 │
-│                 │    │ └─────────────────────────────────┘ │    │                 │
-│                 │    │ ┌─────────────────────────────────┐ │    │                 │
+│                 │    │ │ • Human-in-the-Loop Handoffs   │ │    │                 │
+│                 │    │ └────────────────────────────────┘ │    │                 │
+│                 │    │ ┌─────────────────────────────────┐│    │                 │
 │                 │    │ │      Audit & Compliance        │ │    │                 │
 │                 │    │ │ • Complete Decision Trails     │ │    │                 │
 │                 │    │ │ • Regulatory Logging           │ │    │                 │
@@ -219,7 +219,7 @@ tool_registry = ToolRegistry([
 
 **Hours 16-18: Human-in-the-Loop System**
 - Develop escalation triggers via Portia execution hooks
-- Create seamless human handoff with context preservation
+- Create cut off karde, and then give human context, and then tell human to call, human handoff with context preservation
 - Implement override and approval workflows
 
 **Hours 19-21: Settlement Intelligence**

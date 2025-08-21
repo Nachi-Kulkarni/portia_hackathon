@@ -21,6 +21,11 @@ class ClaimInfo(BaseModel):
     supporting_documents: List[str] = Field(default_factory=list)
     customer_statement: str = ""
 
+class ClaimValidationArgs(BaseModel):
+    """Arguments for claim validation"""
+    claim_info: Dict[str, Any] = Field(description="The claim information to validate")
+    policy_info: Optional[Dict[str, Any]] = Field(default=None, description="The policy information for validation")
+
 class ValidationResult(BaseModel):
     """Claim validation result"""
     is_valid: bool
@@ -31,6 +36,17 @@ class ValidationResult(BaseModel):
 
 class ClaimValidationTool(Tool):
     """Validate insurance claim for authenticity and coverage"""
+    
+    def __init__(self):
+        # Initialize the Tool with required parameters
+        super().__init__(
+            id="claim_validation",
+            name="Claim Validation",
+            description="Validate insurance claim for authenticity and coverage",
+            args_schema=ClaimValidationArgs,
+            output_schema=("json", "Validation result including fraud risk score and recommendations"),
+            structured_output_schema=ValidationResult
+        )
     
     def run(self, ctx: ToolRunContext, claim_info: Dict[str, Any], policy_info: Optional[Dict[str, Any]] = None) -> ValidationResult:
         """Comprehensive claim validation"""

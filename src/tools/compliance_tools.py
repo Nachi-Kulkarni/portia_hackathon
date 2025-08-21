@@ -26,8 +26,25 @@ class ComplianceReport(BaseModel):
     regulatory_notes: str
     risk_level: str  # low, medium, high, critical
 
+class ComplianceCheckArgs(BaseModel):
+    """Arguments for compliance check"""
+    settlement_amount: float = Field(description="The settlement amount to check")
+    claim_type: str = Field(description="The type of claim")
+    state: str = Field(default="CA", description="The state for regulatory compliance")
+
 class ComplianceCheckTool(Tool):
     """Ensure regulatory compliance for settlements"""
+    
+    def __init__(self):
+        # Initialize the Tool with required parameters
+        super().__init__(
+            id="compliance_check",
+            name="Compliance Check",
+            description="Ensure regulatory compliance for settlements",
+            args_schema=ComplianceCheckArgs,
+            output_schema=("json", "Compliance report including violations and required approvals"),
+            structured_output_schema=ComplianceReport
+        )
     
     def run(self, ctx: ToolRunContext, settlement_amount: float, claim_type: str, state: str = "CA") -> ComplianceReport:
         """Comprehensive compliance check"""
@@ -84,59 +101,3 @@ class ComplianceCheckTool(Tool):
             regulatory_notes=f"Compliance check completed for {state} jurisdiction",
             risk_level=risk_level
         )
-
-class SettlementOfferTool(Tool):
-    """Generate final settlement offer with compliance"""
-    
-    def run(self, ctx: ToolRunContext, 
-            recommended_amount: float, 
-            policy_info: Optional[Dict[str, Any]],
-            compliance_report: Optional[Dict[str, Any]],
-            customer_emotion: str = "neutral") -> Dict[str, Any]:
-        """Generate compliant settlement offer"""
-        
-        # Convert dict inputs to models if needed
-        if compliance_report and isinstance(compliance_report, dict):
-            compliance = ComplianceReport(**compliance_report)
-        else:
-            compliance = compliance_report
-            
-        if policy_info and isinstance(policy_info, dict):
-            policy = PolicyInfo(**policy_info)
-        else:
-            policy = policy_info
-        
-        # Adjust offer based on compliance requirements
-        final_amount = recommended_amount
-        
-        if compliance and not compliance.compliant:
-            # Reduce offer if compliance issues exist
-            final_amount *= 0.9
-        
-        # Apply deductible if policy info available
-        if policy:
-            final_amount = max(0, final_amount - policy.deductible)
-        
-        # Emotional adjustment (within compliance bounds)
-        if customer_emotion == "extreme_distress" and final_amount < 100000:
-            final_amount *= 1.05  # Small goodwill adjustment
-        
-        # Generate offer structure
-        offer = {
-            "settlement_amount": final_amount,
-            "breakdown": {
-                "gross_settlement": recommended_amount,
-                "deductible": policy.deductible if policy else 0,
-                "net_settlement": final_amount
-            },
-            "conditions": [
-                "Final and complete settlement",
-                "Release of all claims",
-                f"Payment within {7 if not compliance or compliance.risk_level == 'low' else 14} business days"
-            ],
-            "required_approvals": compliance.required_approvals if compliance else [],
-            "compliance_notes": compliance.regulatory_notes if compliance else "Standard compliance check passed",
-            "expires_in_days": 30
-        }
-        
-        return offer

@@ -22,25 +22,52 @@ class PolicyInfo(BaseModel):
     exclusions: List[str]
     additional_coverages: Dict[str, Any]
 
+class PolicyLookupArgs(BaseModel):
+    """Arguments for policy lookup"""
+    policy_number: str = Field(description="The policy number to look up")
+
 class PolicyLookupTool(Tool):
     """Look up policy details from insurance database"""
     
     def __init__(self):
-        super().__init__()
-        self.mock_data_path = os.getenv("MOCK_POLICY_DB_PATH", "./src/data/mock_policies.json")
+        # Initialize the Tool with required parameters
+        super().__init__(
+            id="policy_lookup",
+            name="Policy Lookup",
+            description="Look up policy details from insurance database",
+            args_schema=PolicyLookupArgs,
+            output_schema=("json", "Policy information including coverage details"),
+            structured_output_schema=PolicyInfo
+        )
     
     def run(self, ctx: ToolRunContext, policy_number: str) -> Optional[PolicyInfo]:
         """Retrieve policy information"""
         try:
-            # In production, this would query real insurance database
-            # For demo, use mock data
-            with open(self.mock_data_path, 'r') as f:
+            # In a real implementation, this would query a database or external API
+            # For now, we'll use the mock data as a starting point for actual implementation
+            mock_data_path = os.getenv("MOCK_POLICY_DB_PATH", "./src/data/mock_policies.json")
+            
+            with open(mock_data_path, 'r') as f:
                 data = json.load(f)
             
             # Find policy in mock data
             for policy in data.get("policies", []):
                 if policy["policy_number"] == policy_number:
-                    return PolicyInfo(**policy)
+                    # Convert the mock data to match our PolicyInfo model
+                    converted_policy = {
+                        "policy_number": policy["policy_number"],
+                        "customer_id": policy["customer_id"],
+                        "policy_type": policy["policy_type"],
+                        "coverage_amount": policy["coverage_amount"],
+                        "deductible": policy["deductible"],
+                        "premium_amount": policy.get("premium", 0),  # Handle missing premium field
+                        "status": policy["status"],
+                        "effective_date": policy["effective_date"],
+                        "expiration_date": policy["expiration_date"],
+                        "exclusions": policy["exclusions"],
+                        "additional_coverages": policy["additional_coverages"]
+                    }
+                    return PolicyInfo(**converted_policy)
             
             # Policy not found
             logger.warning(f"Policy {policy_number} not found")
