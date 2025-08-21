@@ -1,0 +1,2145 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where comments have been removed, empty lines have been removed, content has been compressed (code blocks are separated by ⋮---- delimiter), security check has been disabled.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Code comments have been removed from supported file types
+- Empty lines have been removed from all files
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Security check has been disabled - content may contain sensitive information
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    create-release-pr.yml
+    create-release-tag.yml
+    deploy_pypi.yml
+    licence.yml
+    pyright.yml
+    release.yml
+    ruff.yml
+    security.yml
+    testing.yml
+  pull_request_template.md
+steelthread/
+  evals/
+    __init__.py
+    backend.py
+    default_evaluator.py
+    eval_runner.py
+    evaluator.py
+    metrics.py
+    models.py
+    tags.py
+  portia/
+    __init__.py
+    portia.py
+    storage.py
+    tools.py
+  streams/
+    __init__.py
+    backend.py
+    evaluator.py
+    llm_as_judge.py
+    metrics.py
+    models.py
+    stream_processor.py
+    tags.py
+  utils/
+    __init__.py
+    llm.py
+  __init__.py
+  steelthread.py
+tests/
+  unit/
+    evals/
+      test_backend.py
+      test_default_evaluator.py
+      test_eval_runner.py
+      test_evaluator.py
+      test_metrics.py
+      test_models.py
+      test_tags.py
+    portia/
+      test_portia.py
+      test_storage.py
+      test_tools.py
+    streams/
+      test_backend.py
+      test_evaluator.py
+      test_llm_as_judge.py
+      test_metrics.py
+      test_stream_processor.py
+      test_tags.py
+    utils/
+      test_llm.py
+    test_steelthread.py
+    utils.py
+.env.example
+.gitignore
+.pre-commit-config.yaml
+.python-version
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+example.py
+LICENSE
+pyproject.toml
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".github/workflows/create-release-pr.yml">
+name: Create Release PR
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type (alpha/release)'
+        required: true
+        type: choice
+        options:
+          - alpha
+          - release
+      bump_type:
+        description: 'Version bump type (v{major}.{minor}.{patch})'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+jobs:
+  create-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(uv version --short)
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+      - name: Bump version
+        id: bump_version
+        run: |
+          BASE_VERSION=$(echo "${{ steps.current_version.outputs.current_version }}" | sed 's/a[0-9]\+$//')
+          case "${{ inputs.bump_type }}" in
+            patch)
+              NEW_VERSION=$(echo $BASE_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+              ;;
+            minor)
+              NEW_VERSION=$(echo $BASE_VERSION | awk -F. '{$(NF-1) = $(NF-1) + 1; $NF = 0;} 1' | sed 's/ /./g')
+              ;;
+            major)
+              NEW_VERSION=$(echo $BASE_VERSION | awk -F. '{$1 = $1 + 1; $(NF-1) = 0; $NF = 0;} 1' | sed 's/ /./g')
+              ;;
+          esac
+          if [ "${{ inputs.release_type }}" = "alpha" ]; then
+            NEW_VERSION="${NEW_VERSION}a0"
+          fi
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+      - name: Create release branch and update version
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b release/v${{ steps.bump_version.outputs.new_version }}
+          uv version ${{ steps.bump_version.outputs.new_version }}
+          git add pyproject.toml
+          git commit -m "Bump version to v${{ steps.bump_version.outputs.new_version }}"
+          git push origin release/v${{ steps.bump_version.outputs.new_version }}
+      - name: Create Pull Request
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DEPLOY_PAT_TOKEN }}
+          script: |
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Release v${{ steps.bump_version.outputs.new_version }}`,
+              body: `Automated PR for version bump to v${{ steps.bump_version.outputs.new_version }}`,
+              head: `release/v${{ steps.bump_version.outputs.new_version }}`,
+              base: 'main'
+            });
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: ['release']
+            });
+</file>
+
+<file path=".github/workflows/create-release-tag.yml">
+name: Create Release Tag
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+jobs:
+  create-tag:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Get version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(uv version --short)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Create tag
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DEPLOY_PAT_TOKEN }}
+          script: |
+            const version = 'v${{ steps.get_version.outputs.version }}';
+            const sha = context.sha;
+            try {
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/tags/${version}`,
+                sha: sha
+              });
+              console.log(`Successfully created tag ${version}`);
+            } catch (error) {
+              core.setFailed(`Failed to create tag: ${error.message}`);
+            }
+      - name: Create latest prod release tag tag
+        if: ${{ !contains(steps.get_version.outputs.version, 'a') }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DEPLOY_PAT_TOKEN }}
+          script: |
+            const sha = context.sha;
+            try {
+              await github.rest.git.updateRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/latest-prod-release`,
+                sha: sha,
+                force: true
+              });
+              console.log(`Successfully created tag latest-prod-release`);
+            } catch (error) {
+              core.setFailed(`Failed to create tag: ${error.message}`);
+            }
+</file>
+
+<file path=".github/workflows/deploy_pypi.yml">
+name: Release to PyPI
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+a[0-9]+"
+permissions:
+  contents: read
+  actions: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Extract version from tag
+        id: get_tag_version
+        run: |
+          TAG_VERSION=${GITHUB_REF
+          echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
+      - name: Get version from pyproject.toml
+        id: get_project_version
+        run: |
+          PROJECT_VERSION=$(uv version --short)
+          echo "project_version=$PROJECT_VERSION" >> $GITHUB_OUTPUT
+      - name: Verify versions match
+        id: verify_versions
+        run: |
+          if [ "${{ steps.get_tag_version.outputs.tag_version }}" != "${{ steps.get_project_version.outputs.project_version }}" ]; then
+            echo "Tag version (${{ steps.get_tag_version.outputs.tag_version }}) does not match project version (${{ steps.get_project_version.outputs.project_version }})"
+            exit 1
+          fi
+      - name: Build and publish to PyPI
+        id: pypi_publish
+        run: |
+          uv build
+          uv publish --token ${{ secrets.POETRY_PYPI_TOKEN_PYPI }}
+      - name: Notify Slack on success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: "${{ vars.SLACK_DEV_CHANNEL }}"
+          slack-message: "🧵🧵🧵 Successfully published Steel Thread version ${{ steps.get_tag_version.outputs.tag_version }} to PyPI! 🧵🧵🧵"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: "${{ vars.SLACK_RUN_CHANNEL }}"
+          slack-message: "❌ Failed to publish Steel Thread version ${{ steps.get_tag_version.outputs.tag_version }} to PyPI.\nSee: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+</file>
+
+<file path=".github/workflows/licence.yml">
+name: License Check
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        run: pipx install uv
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install licensecheck pipdeptree
+      - name: Check licenses
+        run: |
+          echo "Checking for disallowed licenses..."
+          echo "::group::License Report"
+          uv run python -m licensecheck --zero | tee license_output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ The following packages have incompatible licenses:"
+            INCOMPATIBLE=$(cat license_output.txt | grep "^│ ✖" | sed 's/│ ✖/❌/g')
+            echo "$INCOMPATIBLE"
+            if [ ! -z "$INCOMPATIBLE" ]; then
+              echo -e "\n📦 Reverse dependency information:"
+              echo "$INCOMPATIBLE" | while read -r line; do
+                PKG=$(echo "$line" | awk '{print $3}')
+                echo -e "\nDependency tree for $PKG:"
+                uv run pipdeptree --reverse --packages "$PKG"
+              done
+            fi
+            echo "::endgroup::"
+            echo "::error::License check failed! Please ensure all dependencies use permissive licenses (MIT, Apache-2.0, BSD, ISC)."
+            exit 1
+          fi
+          echo "::endgroup::"
+          echo "✅ All dependency licenses are compliant!"
+</file>
+
+<file path=".github/workflows/pyright.yml">
+name: Run Pyright
+on:
+  pull_request:
+    branches:
+      - "*"
+jobs:
+  pyright:
+    name: Static Type Checking with Pyright
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+      - name: Install Pyright
+        run: npm install -g pyright
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install dependencies
+        run: uv sync --all-extras
+      - name: Run Pyright
+        run: uv run pyright
+</file>
+
+<file path=".github/workflows/release.yml">
+name: Version Tag Creation
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to create tag from'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - main
+          - production
+permissions:
+  contents: write
+  actions: write
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Fetch tags
+        run: git fetch --tags
+      - name: Get version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(uv version --short)
+          echo "Version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Check if version is already tagged
+        run: |
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists. Skipping tag creation."
+            echo "tag_exists=true" >> $GITHUB_ENV
+          else
+            echo "Tag $VERSION does not exist. Creating new tag."
+          fi
+      - name: Create Git tag
+        if: env.tag_exists != 'true'
+        run: |
+          git tag $VERSION
+      - name: Push changes
+        if: env.tag_exists != 'true'
+        run: |
+          git push origin $VERSION
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to PyPI
+        if: env.tag_exists != 'true'
+        run: |
+          export POETRY_PYPI_TOKEN_PYPI=${{secrets.POETRY_PYPI_TOKEN_PYPI}}
+          uv build
+          uv publish --token ${{ secrets.POETRY_PYPI_TOKEN_PYPI }}
+</file>
+
+<file path=".github/workflows/ruff.yml">
+name: Formatting (ruff)
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v1
+        with:
+          args: check
+          version: "0.8.6"
+</file>
+
+<file path=".github/workflows/security.yml">
+name: Python Testing
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Bandit
+        run: pip install bandit
+      - name: Run Bandit
+        run: |
+          bandit -r . -x tests --severity-level medium -o bandit-report.txt
+      - name: Upload Bandit Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.txt
+</file>
+
+<file path=".github/workflows/testing.yml">
+name: Python Testing
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - labeled
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  testing:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest-16core
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: install uv
+        run: pipx install uv
+      - name: install dependencies
+        run: uv sync --all-extras
+      - name: tests + coverage
+        run: |
+          set -o pipefail
+          uv run pytest -m "not daily" --cov --cov-fail-under 100 --log-cli-level=WARNING --junitxml=pytest.xml | tee pytest-coverage.txt
+</file>
+
+<file path=".github/pull_request_template.md">
+# Description
+
+Please include a summary of the change. Please also include relevant motivation and context. List any dependencies that are required for this change.
+
+Ticket Link: N/A 
+
+## Type of change
+
+(select all that apply)
+
+- [ ] Bug fix 
+- [ ] New feature 
+- [ ] Breaking change 
+- [ ] Refactor
+- [ ] Requires sync with platform release
+- [ ] Documentation update
+
+## Screenshots
+
+(If applicable, add screenshots to help explain your changes)
+
+## Changelog
+
+(If applicable, add a changelog [entry](https://keepachangelog.com/en/))
+</file>
+
+<file path="steelthread/evals/__init__.py">
+__all__ = [
+</file>
+
+<file path="steelthread/evals/backend.py">
+class PortiaBackend(BaseModel)
+⋮----
+config: Config
+def client(self) -> httpx.Client
+def check_response(self, response: httpx.Response) -> None
+⋮----
+error_str = str(response.content)
+⋮----
+def load_evals(self, dataset_name: str, run_id: str) -> list[EvalTestCase]
+⋮----
+client = self.client()
+page = 1
+base_url = "/api/v0/evals/dataset-test-cases/?dataset_name={dataset_name}&page={page}"
+test_cases = []
+⋮----
+url = base_url.format(dataset_name=dataset_name, page=page)
+response = client.get(url)
+⋮----
+data = response.json()
+⋮----
+page = None
+</file>
+
+<file path="steelthread/evals/default_evaluator.py">
+class OutputScoreCalculator
+⋮----
+@staticmethod
+    def calculate(output: Output | None, assertion: FinalOutputAssertion) -> float
+⋮----
+output_str = str(output.get_value()) if output else ""
+expected_str = str(assertion.value)
+⋮----
+class AssertionEvaluator
+⋮----
+def evaluate(self, assertion: Assertion) -> list[EvalMetric]
+def _format_eval_output(self) -> dict
+def _evaluate_llm_judge(self, assertion: LLMAsJudgeAssertion) -> list[EvalMetric]
+⋮----
+scorer = LLMScorer(self.config)
+metrics = scorer.score(
+⋮----
+def _evaluate_outcome(self, assertion: OutcomeAssertion) -> EvalMetric
+⋮----
+assertion_value = assertion.value.lower()
+actual_value = self.plan_run.state.lower()
+score = 1 if assertion_value == actual_value else 0
+⋮----
+def _evaluate_final_output(self, assertion: FinalOutputAssertion) -> list[EvalMetric]
+⋮----
+assertion_value = assertion.value
+actual_value = str(
+⋮----
+score = OutputScoreCalculator.calculate(self.plan_run.outputs.final_output, assertion)
+⋮----
+def _evaluate_latency(self, assertion: LatencyAssertion) -> EvalMetric
+⋮----
+actual = self.metadata.latency_ms
+target = assertion.threshold_ms
+score = 1 - (abs(target - actual) / max(abs(target), abs(actual), 1e-8))
+⋮----
+def _evaluate_tool_calls(self, assertion: ToolCallsAssertion) -> EvalMetric
+⋮----
+expected_calls = 0
+actual_calls = 0
+⋮----
+matched = [tc for tc in self.metadata.tool_calls if tc.tool_name == tool_call_name]
+⋮----
+score = 1.0
+⋮----
+score = min(actual_calls / expected_calls, 1.0)
+⋮----
+score = 0.0
+⋮----
+class DefaultEvaluator(Evaluator)
+⋮----
+evaluator = AssertionEvaluator(
+all_metrics = []
+</file>
+
+<file path="steelthread/evals/eval_runner.py">
+class EvalConfig
+class EvalRunner
+⋮----
+def __init__(self, portia: Portia, config: EvalConfig) -> None
+def _evaluate_and_collect_metrics(self, tc: EvalTestCase) -> list[EvalMetric]
+⋮----
+inner_registry = self.original_portia.tool_registry
+tool_registry = ToolStubRegistry(inner_registry, stubs={})
+portia = NoAuthPullPortia(config=self.config.portia_config, tools=tool_registry)
+⋮----
+all_metrics = []
+⋮----
+metrics = evaluator.eval_test_case(
+⋮----
+def run(self) -> None
+⋮----
+run_id = str(uuid4())
+test_cases = self.backend.load_evals(self.config.eval_dataset_name, run_id)
+⋮----
+futures = []
+⋮----
+metrics = future.result()
+⋮----
+def _run_test_case(self, tc: EvalTestCase, portia: Portia) -> tuple[Plan, PlanRun, float]
+⋮----
+start = time.perf_counter()
+⋮----
+plan = portia.plan(
+output = portia.run_plan(plan)
+⋮----
+plan = portia.storage.get_plan(PlanUUID.from_string(tc.input_config.value))
+⋮----
+end = time.perf_counter()
+</file>
+
+<file path="steelthread/evals/evaluator.py">
+class PlanRunMetadata(BaseModel)
+⋮----
+tool_calls: list[ToolCallRecord]
+latency_ms: float
+class Evaluator(ABC)
+⋮----
+def __init__(self, config: Config) -> None
+</file>
+
+<file path="steelthread/evals/metrics.py">
+MIN_EXPLANATION_LENGTH = 10
+class EvalMetric(BaseModel)
+⋮----
+dataset: str
+testcase: str
+run: str
+score: float
+name: str
+description: str
+expectation: str | list[str] | dict[str, str] | None
+actual_value: str | list[str] | dict[str, str] | None
+eval_output: dict[str, BaseModel] | None = Field(
+explanation: str | None = Field(default="", description="An optional explanation of the score.")
+tags: dict[str, str] = Field(default={})
+⋮----
+@field_validator("explanation")
+@classmethod
+    def explanation_min_length(cls, v: str | None) -> str | None
+⋮----
+@field_serializer("eval_output")
+    def serialize_eval_output(self, v: dict[str, BaseModel] | None) -> dict
+⋮----
+class MetricsBackend(ABC)
+⋮----
+@abstractmethod
+    def save_eval_metrics(self, metrics: list[EvalMetric]) -> None
+class PortiaEvalMetricsBackend(MetricsBackend)
+⋮----
+def __init__(self, config: Config) -> None
+def client(self) -> httpx.Client
+def check_response(self, response: httpx.Response) -> None
+def save_eval_metrics(self, metrics: list[EvalMetric]) -> None
+⋮----
+payload = [m.model_dump() for m in metrics]
+client = self.client()
+response = client.post("/api/v0/evals/eval-metrics/", json=payload)
+⋮----
+class EvalLogMetricBackend(MetricsBackend)
+⋮----
+dataframe = pd.DataFrame([m.model_dump() for m in metrics])
+tags_df = dataframe["tags"].apply(pd.Series)
+dataframe = pd.concat([dataframe.drop(columns=["tags"]), tags_df], axis=1)
+group_keys = ["name", *tags_df.columns.tolist()]
+avg_scores = dataframe.groupby(group_keys)["score"].mean().reset_index()
+</file>
+
+<file path="steelthread/evals/models.py">
+class InputConfig(BaseModel)
+⋮----
+type: Literal["query", "plan_id"]
+value: str
+tools: list[str] | None = None
+end_user_id: str | None = None
+class OutcomeAssertion(BaseModel)
+⋮----
+type: Literal["outcome"]
+⋮----
+class FinalOutputAssertion(BaseModel)
+⋮----
+type: Literal["final_output"]
+output_type: Literal["exact_match", "partial_match", "llm_judge"]
+⋮----
+class ToolCallAssertion(BaseModel)
+⋮----
+called: bool
+class ToolCallsAssertion(BaseModel)
+⋮----
+type: Literal["tool_calls"]
+calls: dict[str, ToolCallAssertion]
+class LatencyAssertion(BaseModel)
+⋮----
+type: Literal["latency"]
+threshold_ms: float
+class LLMAsJudgeAssertion(BaseModel)
+⋮----
+type: Literal["llm_as_judge"]
+⋮----
+class CustomAssertion(BaseModel)
+⋮----
+type: Literal["custom"]
+value: dict[str, str]
+Assertion = Annotated[
+class EvalTestCase(BaseModel)
+⋮----
+dataset: str
+testcase: str
+run: str
+input_config: InputConfig
+assertions: list[Assertion]
+def get_custom_assertion(self, key: str) -> str | None
+</file>
+
+<file path="steelthread/evals/tags.py">
+class EvalMetricTagger
+⋮----
+def append_tags(m: EvalMetric) -> EvalMetric
+</file>
+
+<file path="steelthread/portia/__init__.py">
+__all__ = [
+</file>
+
+<file path="steelthread/portia/portia.py">
+class NoAuthPullPortia(Portia)
+</file>
+
+<file path="steelthread/portia/storage.py">
+class ReadOnlyStorage(Storage)
+⋮----
+def __init__(self, storage: Storage) -> None
+def save_plan(self, plan: Plan) -> None
+def get_plan(self, plan_id: PlanUUID) -> Plan
+def get_plan_by_query(self, query: str) -> Plan
+def plan_exists(self, plan_id: PlanUUID) -> bool
+def save_plan_run(self, plan_run: PlanRun) -> None
+def get_plan_run(self, plan_run_id: PlanRunUUID) -> PlanRun
+⋮----
+def save_tool_call(self, tool_call: ToolCallRecord) -> None
+⋮----
+def get_plan_run_output(self, output_name: str, plan_run_id: PlanRunUUID) -> LocalDataValue
+def get_similar_plans(self, query: str, threshold: float = 0.5, limit: int = 5) -> list[Plan]
+def save_end_user(self, end_user: EndUser) -> EndUser
+def get_end_user(self, external_id: str) -> EndUser | None
+</file>
+
+<file path="steelthread/portia/tools.py">
+class ToolStubContext(BaseModel)
+⋮----
+tool_call_index: int
+original_context: ToolRunContext
+original_tool: Tool | None
+args: tuple[Any, ...]
+kwargs: dict[str, Any]
+ToolResponseStub = Callable[[ToolStubContext], Any]
+class ToolStub(Tool)
+⋮----
+child_tool: Tool | None = Field(
+return_callable: ToolResponseStub | None = Field(
+tool_calls: list[ToolCallRecord] = Field(
+⋮----
+call_index = len(self.tool_calls)
+tool_call_status = ToolCallStatus.SUCCESS
+⋮----
+stub_ctx = ToolStubContext(
+tool_output = self.return_callable(stub_ctx)
+⋮----
+tool_output = str(e)
+tool_call_status = ToolCallStatus.FAILED
+⋮----
+tool_output = self.child_tool.run(ctx, *args, **kwargs)
+⋮----
+tc = ToolCallRecord(
+⋮----
+class ToolStubRegistry(ToolRegistry)
+⋮----
+def __init__(self, registry: ToolRegistry, stubs: dict[str, ToolResponseStub]) -> None
+def get_tool_calls(self, tool_id: str | None = None) -> list[ToolCallRecord]
+⋮----
+all_calls = []
+⋮----
+def get_tool(self, tool_id: str) -> Tool
+⋮----
+tool = super().get_tool(tool_id)
+⋮----
+tool_stub = ToolStub(
+⋮----
+def get_tools(self) -> list[Tool]
+⋮----
+tools = super().get_tools()
+</file>
+
+<file path="steelthread/streams/__init__.py">
+__all__ = [
+</file>
+
+<file path="steelthread/streams/backend.py">
+class PortiaStreamBackend(BaseModel)
+⋮----
+config: Config
+def client(self) -> httpx.Client
+def check_response(self, response: httpx.Response) -> None
+⋮----
+error_str = str(response.content)
+⋮----
+def get_stream(self, stream_name: str) -> Stream
+⋮----
+client = self.client()
+url = f"/api/v0/evals/streams/by-name/{stream_name}/"
+response = client.get(url)
+⋮----
+def load_plan_stream_items(self, stream_id: str, batch_size: int) -> list[PlanStreamItem]
+⋮----
+page = 1
+base_url = "/api/v0/evals/stream-items/?stream_id={stream_id}&page={page}"
+test_cases = []
+⋮----
+url = base_url.format(stream_id=stream_id, page=page)
+⋮----
+data = response.json()
+results = data.get("results", [])
+⋮----
+page = None
+⋮----
+def mark_processed(self, item: PlanStreamItem | PlanRunStreamItem) -> None
+⋮----
+response = client.patch(
+</file>
+
+<file path="steelthread/streams/evaluator.py">
+class StreamEvaluator
+⋮----
+def __init__(self, config: Config) -> None
+</file>
+
+<file path="steelthread/streams/llm_as_judge.py">
+class LLMJudgeEvaluator(StreamEvaluator)
+⋮----
+def __init__(self, config: Config) -> None
+def process_plan(self, stream_item: PlanStreamItem) -> list[StreamMetric]
+⋮----
+task_data = stream_item.plan.model_dump_json()
+metrics = self.scorer.score(
+⋮----
+def process_plan_run(self, stream_item: PlanRunStreamItem) -> list[StreamMetric]
+⋮----
+task_data = f"""
+</file>
+
+<file path="steelthread/streams/metrics.py">
+MIN_EXPLANATION_LENGTH = 10
+class StreamMetric(BaseModel)
+⋮----
+stream: str
+stream_item: str
+score: float
+name: str
+description: str
+explanation: str | None = Field(
+tags: dict[str, str] | None = Field(default={}, description="Tags for querying this metric.")
+⋮----
+@field_validator("explanation")
+@classmethod
+    def explanation_min_length(cls, v: str | None) -> str | None
+class StreamMetricsBackend(ABC)
+⋮----
+@abstractmethod
+    def save_metrics(self, metrics: list[StreamMetric]) -> None
+class PortiaStreamMetricsBackend(StreamMetricsBackend)
+⋮----
+def __init__(self, config: Config) -> None
+def client(self) -> httpx.Client
+def check_response(self, response: httpx.Response) -> None
+def save_metrics(self, metrics: list[StreamMetric]) -> None
+⋮----
+payload = [m.model_dump() for m in metrics]
+client = self.client()
+response = client.post("/api/v0/evals/stream-metrics/", json=payload)
+⋮----
+class StreamLogMetricBackend(StreamMetricsBackend)
+⋮----
+flattened = [m.model_dump() for m in metrics]
+dataframe = pd.DataFrame(flattened)
+tags_df = dataframe["tags"].apply(pd.Series)
+dataframe = pd.concat([dataframe.drop(columns=["tags"]), tags_df], axis=1)
+avg_scores = dataframe.groupby(["stream_item", "name"])["score"].mean().reset_index()
+</file>
+
+<file path="steelthread/streams/models.py">
+class StreamSource(enum.Enum)
+⋮----
+PLAN = "plan"
+PLAN_RUN = "plan_run"
+class Stream(BaseModel)
+⋮----
+id: str
+name: str
+source: StreamSource
+sample_rate: int
+sample_filters: dict[str, Any]
+last_sampled: str
+class PlanStreamItem(BaseModel)
+⋮----
+stream: str
+stream_item: str
+plan: Plan
+class PlanRunStreamItem(BaseModel)
+⋮----
+plan_run: PlanRun
+</file>
+
+<file path="steelthread/streams/stream_processor.py">
+class StreamConfig
+class StreamProcessor
+⋮----
+def __init__(self, config: StreamConfig) -> None
+def run(self) -> None
+⋮----
+stream = self.backend.get_stream(self.config.stream_name)
+⋮----
+def _process_plan(self, stream: Stream) -> None
+⋮----
+items = self.backend.load_plan_stream_items(
+all_metrics: list[StreamMetric] = []
+futures = []
+⋮----
+result: list[StreamMetric] | StreamMetric | None = future.result()
+⋮----
+def _evaluate_plan_stream_item(self, stream_item: PlanStreamItem) -> list[StreamMetric]
+⋮----
+metrics_out = []
+⋮----
+metrics = evaluator.process_plan(stream_item)
+⋮----
+def _process_plan_runs(self, stream: Stream) -> None
+⋮----
+items = self.backend.load_plan_run_stream_items(
+⋮----
+def _evaluate_plan_run_stream_item(self, stream_item: PlanRunStreamItem) -> list[StreamMetric]
+⋮----
+metrics_out: list[StreamMetric] = []
+⋮----
+metrics = evaluator.process_plan_run(stream_item)
+</file>
+
+<file path="steelthread/streams/tags.py">
+class StreamMetricTagger
+⋮----
+def append_tags(m: StreamMetric) -> StreamMetric
+</file>
+
+<file path="steelthread/utils/__init__.py">
+
+</file>
+
+<file path="steelthread/utils/llm.py">
+MIN_EXPLANATION_LENGTH = 10
+class MetricOnly(BaseModel)
+⋮----
+name: str
+description: str
+class MetricOutput(BaseModel)
+⋮----
+score: float
+⋮----
+explanation: str = Field(description="A required explanation of the score.")
+⋮----
+@field_validator("explanation")
+@classmethod
+    def explanation_min_length(cls, v: str | None) -> str | None
+class MetricOutputList(BaseModel)
+⋮----
+metrics: list[MetricOutput]
+class LLMScorer
+⋮----
+messages = [
+metrics = (
+class_name = self.__class__.__name__
+</file>
+
+<file path="steelthread/__init__.py">
+
+</file>
+
+<file path="steelthread/steelthread.py">
+class SteelThread
+⋮----
+@staticmethod
+    def process_stream(config: StreamConfig) -> None
+⋮----
+@staticmethod
+    def run_evals(portia: Portia, config: EvalConfig) -> None
+</file>
+
+<file path="tests/unit/evals/test_backend.py">
+@pytest.fixture
+def config() -> Config
+⋮----
+@pytest.fixture
+def backend(config: Config) -> PortiaBackend
+def test_load_evals_pagination(backend: PortiaBackend, httpx_mock: HTTPXMock) -> None
+⋮----
+page_1 = {
+page_2 = {
+⋮----
+test_cases = backend.load_evals(dataset_name="myset", run_id="run-123")
+⋮----
+def test_check_response_raises_on_error(backend: PortiaBackend) -> None
+⋮----
+response = httpx.Response(status_code=400, content=b'{"detail": "Bad request"}')
+</file>
+
+<file path="tests/unit/evals/test_default_evaluator.py">
+@pytest.fixture
+def config() -> Config
+⋮----
+@pytest.fixture
+def test_case() -> EvalTestCase
+def test_outcome_assertion(config: Config, test_case: EvalTestCase) -> None
+⋮----
+metadata = PlanRunMetadata(tool_calls=[], latency_ms=10)
+⋮----
+evaluator = DefaultEvaluator(config)
+metrics = evaluator.eval_test_case(test_case, plan, plan_run, metadata)
+⋮----
+m = metrics[0]
+⋮----
+def test_final_output_exact_match(config: Config, test_case: EvalTestCase) -> None
+def test_final_output_partial_match(config: Config, test_case: EvalTestCase) -> None
+def test_final_output_unknown_match(config: Config, test_case: EvalTestCase) -> None
+def test_final_output_custom(config: Config, test_case: EvalTestCase) -> None
+def test_final_output_unknown_type(config: Config, test_case: EvalTestCase) -> None
+def test_latency_assertion(config: Config, test_case: EvalTestCase) -> None
+def test_tool_calls_assertion(config: Config, test_case: EvalTestCase) -> None
+⋮----
+metadata = PlanRunMetadata(
+⋮----
+def test_tool_calls_not_called_assertion(config: Config, test_case: EvalTestCase) -> None
+def test_tool_calls_no_assertion(config: Config, test_case: EvalTestCase) -> None
+def test_tool_calls_no_call_assertion(config: Config, test_case: EvalTestCase) -> None
+⋮----
+mock_metric = MetricOutput(
+mock_scorer = mock_scorer_class.return_value
+</file>
+
+<file path="tests/unit/evals/test_eval_runner.py">
+def make_test_case(with_plan: bool) -> EvalTestCase
+def test_eval_config_defaults() -> None
+⋮----
+config = get_test_config()
+eval_config = EvalConfig(eval_dataset_name="test", config=config)
+⋮----
+config = EvalConfig(
+mock_portia = MagicMock()
+runner = EvalRunner(mock_portia, config=config)
+test_case = make_test_case(with_plan=False)
+⋮----
+mock_metric = EvalMetric.from_test_case(
+mock_future = MagicMock()
+⋮----
+mock_executor = MagicMock()
+⋮----
+mock_evaluator = MagicMock()
+⋮----
+runner = EvalRunner(portia=mock_portia_cls, config=config)
+result = runner._evaluate_and_collect_metrics(test_case)
+⋮----
+@patch("steelthread.evals.eval_runner.PlanUUID.from_string")
+def test_run_test_case_query_input(mock_plan_uuid: MagicMock) -> None
+⋮----
+config = EvalConfig(eval_dataset_name="d", config=get_test_config())
+⋮----
+mock_plan = MagicMock()
+mock_output = MagicMock()
+⋮----
+runner = EvalRunner(portia=mock_portia, config=config)
+⋮----
+@patch("steelthread.evals.eval_runner.PlanUUID.from_string")
+def test_run_test_case_plan_id_input(mock_plan_uuid: MagicMock) -> None
+⋮----
+test_case = make_test_case(with_plan=True)
+⋮----
+def test_run_test_case_invalid_type() -> None
+</file>
+
+<file path="tests/unit/evals/test_evaluator.py">
+def test_plan_run_metadata_model() -> None
+⋮----
+metadata = PlanRunMetadata(
+⋮----
+def test_evaluator_base_class_instantiation() -> None
+⋮----
+class DummyEvaluator(Evaluator)
+config = get_test_config()
+evaluator = DummyEvaluator(config=config)
+⋮----
+def test_base_evaluator_default_method_returns_empty_list() -> None
+⋮----
+test_case = EvalTestCase(
+⋮----
+metadata = PlanRunMetadata(tool_calls=[], latency_ms=50.0)
+result = evaluator.eval_test_case(test_case, plan, plan_run, metadata)
+</file>
+
+<file path="tests/unit/evals/test_metrics.py">
+@pytest.fixture
+def test_case() -> EvalTestCase
+def test_eval_metric_from_test_case(test_case: EvalTestCase) -> None
+⋮----
+metric = EvalMetric.from_test_case(
+⋮----
+def test_eval_metric_explanation_too_short() -> None
+def test_metrics_backend_abstract_class() -> None
+⋮----
+class DummyBackend(MetricsBackend)
+⋮----
+def save_eval_metrics(self, metrics: list[EvalMetric]) -> None
+backend = DummyBackend()
+⋮----
+@patch("steelthread.evals.metrics.PortiaCloudClient")
+def test_portia_eval_metrics_backend_success(mock_client_class: MagicMock) -> None
+⋮----
+config = get_test_config()
+backend = PortiaEvalMetricsBackend(config)
+metric = EvalMetric(
+mock_client = MagicMock()
+mock_response = Response(
+⋮----
+call = mock_client.post.call_args[1]
+⋮----
+@patch("steelthread.evals.metrics.PortiaCloudClient")
+def test_portia_eval_metrics_backend_failure(mock_client_class: MagicMock) -> None
+def test_eval_log_metric_backend_outputs(capfd: pytest.CaptureFixture) -> None
+⋮----
+backend = EvalLogMetricBackend()
+metrics = [
+</file>
+
+<file path="tests/unit/evals/test_models.py">
+def test_input_config_fields() -> None
+⋮----
+config = InputConfig(type="query", value="what is ai?", tools=["search"], end_user_id="user1")
+⋮----
+def test_outcome_assertion() -> None
+⋮----
+assertion = OutcomeAssertion(type="outcome", value="COMPLETE")
+⋮----
+def test_final_output_assertion() -> None
+⋮----
+assertion = FinalOutputAssertion(
+⋮----
+def test_tool_calls_assertion() -> None
+⋮----
+assertion = ToolCallsAssertion(
+⋮----
+def test_latency_assertion() -> None
+⋮----
+assertion = LatencyAssertion(type="latency", threshold_ms=1000)
+⋮----
+def test_custom_assertion() -> None
+⋮----
+assertion = CustomAssertion(type="custom", value={"key1": "value1"})
+⋮----
+def test_eval_test_case_get_custom_assertion_found() -> None
+⋮----
+test_case = EvalTestCase(
+result = test_case.get_custom_assertion("tag")
+⋮----
+def test_eval_test_case_get_custom_assertion_not_found() -> None
+⋮----
+result = test_case.get_custom_assertion("missing")
+⋮----
+def test_eval_test_case_mixed_assertions() -> None
+</file>
+
+<file path="tests/unit/evals/test_tags.py">
+@pytest.fixture
+def mock_test_case() -> EvalTestCase
+⋮----
+metric = EvalMetric.from_test_case(
+result = EvalMetricTagger.attach_tags_to_test_case(
+⋮----
+tagged = result[0]
+⋮----
+def test_attach_tags_to_multiple_metrics(mock_test_case: EvalTestCase) -> None
+⋮----
+metrics = [
+</file>
+
+<file path="tests/unit/portia/test_portia.py">
+def test_no_pull_portia() -> None
+⋮----
+portia = NoAuthPullPortia(get_test_config(), tools=InMemoryToolRegistry.from_local_tools([]))
+⋮----
+clarifications = portia._check_remaining_tool_readiness(plan, plan_run)
+</file>
+
+<file path="tests/unit/portia/test_storage.py">
+@pytest.fixture
+def readonly_storage() -> tuple[ReadOnlyStorage, MagicMock, Plan, PlanRun]
+⋮----
+real_storage = MagicMock()
+ro = ReadOnlyStorage(storage=real_storage)
+⋮----
+output = LocalDataValue(value="foo")
+⋮----
+def test_end_user_proxy(readonly_storage: tuple[ReadOnlyStorage, MagicMock, Plan, PlanRun]) -> None
+⋮----
+user = EndUser(external_id="u1", additional_data={"x": "y"})
+⋮----
+end_user = ro.get_end_user("some-id")
+⋮----
+result = ro.get_plan(plan.id)
+⋮----
+retrieved = ro.local_storage.get_plan_run(plan_run.id)
+⋮----
+result = ro.get_plan_run(plan_run.id)
+</file>
+
+<file path="tests/unit/portia/test_tools.py">
+@pytest.fixture
+def dummy_context() -> ToolRunContext
+def test_tool_stub_with_return_callable(dummy_context: ToolRunContext) -> None
+⋮----
+def return_callable(ctx: ToolStubContext) -> str
+tool = ToolStub(
+⋮----
+result = tool.run(dummy_context, 1, x=2)
+⋮----
+def test_tool_stub_with_child_tool(dummy_context: ToolRunContext) -> None
+⋮----
+class DummyChildTool(Tool)
+⋮----
+def run(self, ctx, *args, **kwargs) -> str
+child = DummyChildTool(
+⋮----
+result = tool.run(dummy_context)
+⋮----
+def test_tool_stub_with_child_tool_error(dummy_context: ToolRunContext) -> None
+⋮----
+def run(self, ctx, *args, **kwargs) -> Never
+⋮----
+def test_tool_stub_failure_from_callable(dummy_context: ToolRunContext) -> None
+⋮----
+def failing_callable(ctx: ToolStubContext) -> Never
+⋮----
+def test_tool_stub_fails_without_child_or_callable(dummy_context: MagicMock) -> None
+def test_tool_stub_sets_plan_run_id_on_clarification(dummy_context: MagicMock) -> None
+⋮----
+def returns_clarification(ctx: ToolStubContext) -> Clarification
+⋮----
+def test_tool_stub_registry_resolves_stubs() -> None
+⋮----
+tool = DummyChildTool(
+registry = MagicMock()
+⋮----
+def stub_fn(ctx: ToolStubContext) -> str
+stub_registry = ToolStubRegistry(registry=registry, stubs={"my-tool": stub_fn})
+resolved = stub_registry.get_tool("my-tool")
+⋮----
+def test_tool_stub_registry_fallbacks_and_calls_tracking() -> None
+⋮----
+base_tool = DummyChildTool(
+⋮----
+stub_registry = ToolStubRegistry(registry=registry, stubs={})
+resolved = stub_registry.get_tool("base-tool")
+⋮----
+calls = stub_registry.get_tool_calls("base-tool")
+⋮----
+calls = stub_registry.get_tool_calls("other-tool")
+⋮----
+all_calls = stub_registry.get_tool_calls()
+⋮----
+def stub_response(ctx: ToolStubContext) -> str
+stub_registry = ToolStubRegistry(registry=registry, stubs={"base-tool": stub_response})
+resolved1 = stub_registry.get_tool("base-tool")
+⋮----
+resolved2 = stub_registry.get_tool("base-tool")
+⋮----
+tools = stub_registry.get_tools()
+</file>
+
+<file path="tests/unit/streams/test_backend.py">
+@pytest.fixture
+def backend() -> PortiaStreamBackend
+def make_mock_response(data: Any, status_code: int = 200) -> Response
+⋮----
+@patch("steelthread.streams.backend.PortiaCloudClient")
+def test_get_stream_success(mock_client_class: MagicMock, backend: PortiaStreamBackend) -> None
+⋮----
+mock_client = MagicMock()
+mock_response = make_mock_response(
+⋮----
+stream = backend.get_stream("my-stream")
+⋮----
+response = Response(400, content=b"Bad Request", request=Request("GET", "https://fake.url"))
+⋮----
+plan = get_test_plan_run()[0]
+page_1 = {
+page_2 = {
+page_3 = {
+⋮----
+items = backend.load_plan_stream_items("stream-123", batch_size=2)
+⋮----
+items = backend.load_plan_stream_items("stream-123", batch_size=3)
+⋮----
+items = backend.load_plan_run_stream_items("stream-123", batch_size=2)
+⋮----
+items = backend.load_plan_run_stream_items("stream-123", batch_size=3)
+⋮----
+mock_response = make_mock_response({}, 200)
+⋮----
+item = PlanStreamItem(stream="stream-123", stream_item="item-456", plan=plan)
+⋮----
+mock_response = make_mock_response({"results": []}, 200)
+</file>
+
+<file path="tests/unit/streams/test_evaluator.py">
+class DummyEvaluator(StreamEvaluator)
+⋮----
+def process_plan(self, stream_item: PlanStreamItem) -> list[StreamMetric]
+def process_plan_run(self, stream_item: PlanRunStreamItem) -> StreamMetric
+def test_process_plan_returns_metric_list() -> None
+⋮----
+evaluator = DummyEvaluator(config=get_test_config())
+⋮----
+stream_item = PlanStreamItem(stream="123", stream_item="456", plan=plan)
+result = evaluator.process_plan(stream_item)
+⋮----
+def test_process_plan_run_returns_metric() -> None
+⋮----
+stream_item = PlanRunStreamItem(stream="123", stream_item="456", plan=plan, plan_run=plan_run)
+result = evaluator.process_plan_run(stream_item)
+⋮----
+def test_base_methods() -> None
+⋮----
+class MyEvaluator(StreamEvaluator)
+evaluator = MyEvaluator(config=get_test_config())
+</file>
+
+<file path="tests/unit/streams/test_llm_as_judge.py">
+@pytest.fixture
+def mock_metrics() -> list[MetricOutput]
+⋮----
+mock_scorer = MagicMock()
+⋮----
+evaluator = LLMJudgeEvaluator(config=get_test_config())
+⋮----
+stream_item = PlanStreamItem(stream="s1", stream_item="i1", plan=plan)
+result = evaluator.process_plan(stream_item)
+⋮----
+stream_item = PlanRunStreamItem(stream="s1", stream_item="i2", plan=plan, plan_run=plan_run)
+result = evaluator.process_plan_run(stream_item)
+</file>
+
+<file path="tests/unit/streams/test_metrics.py">
+def test_stream_metric_from_stream_item() -> None
+⋮----
+item = PlanStreamItem(stream="stream-123", stream_item="item-456", plan=plan)
+metric = StreamMetric.from_stream_item(
+⋮----
+def test_stream_metric_explanation_too_short() -> None
+def test_stream_metrics_backend_abstract() -> None
+⋮----
+class DummyBackend(StreamMetricsBackend)
+⋮----
+def save_metrics(self, metrics: list[StreamMetric]) -> None
+backend = DummyBackend()
+⋮----
+@patch("steelthread.streams.metrics.PortiaCloudClient")
+def test_portia_stream_metrics_backend_success(mock_client_class: MagicMock) -> None
+⋮----
+config = get_test_config()
+backend = PortiaStreamMetricsBackend(config)
+metric = StreamMetric(
+mock_client = MagicMock()
+mock_response = Response(
+⋮----
+@patch("steelthread.streams.metrics.PortiaCloudClient")
+def test_portia_stream_metrics_backend_failure(mock_client_class: MagicMock) -> None
+def test_stream_log_metrics_backend_logs_metrics(capfd: pytest.CaptureFixture) -> None
+⋮----
+backend = StreamLogMetricBackend()
+metric1 = StreamMetric(
+metric2 = StreamMetric(
+</file>
+
+<file path="tests/unit/streams/test_stream_processor.py">
+def test_stream_config_defaults() -> None
+⋮----
+config = get_test_config()
+stream_config = StreamConfig(stream_name="s", config=config)
+⋮----
+config = StreamConfig(stream_name="s", config=get_test_config())
+processor = StreamProcessor(config=config)
+⋮----
+mock_item = PlanStreamItem(stream="s", stream_item="1", plan=plan)
+⋮----
+mock_metric = StreamMetric(
+⋮----
+mock_evaluator = MagicMock()
+⋮----
+item = PlanRunStreamItem(stream="s", stream_item="2", plan=plan, plan_run=plan_run)
+⋮----
+metric = StreamMetric(
+⋮----
+processor = StreamProcessor(config)
+</file>
+
+<file path="tests/unit/streams/test_tags.py">
+@pytest.fixture
+def stream_item() -> PlanStreamItem
+def test_attach_tags_single_metric(stream_item: PlanStreamItem) -> None
+⋮----
+metric = StreamMetric(
+tagged = StreamMetricTagger.attach_tags(metric, stream_item, {"env": "test"})
+⋮----
+def test_attach_tags_multiple_metrics(stream_item: PlanStreamItem) -> None
+⋮----
+metric1 = StreamMetric(
+metric2 = StreamMetric(
+tagged = StreamMetricTagger.attach_tags([metric1, metric2], stream_item, {"stage": "eval"})
+</file>
+
+<file path="tests/unit/utils/test_llm.py">
+def test_metric_only_valid() -> None
+⋮----
+metric = MetricOnly(
+⋮----
+def test_metric_output_valid() -> None
+⋮----
+metric = MetricOutput(
+⋮----
+def test_metric_only_invalid_explanation() -> None
+def test_metric_only_list() -> None
+⋮----
+m1 = MetricOutput(
+m2 = MetricOutput(
+metrics_list = MetricOutputList(metrics=[m1, m2])
+⋮----
+def test_llm_metric_scorer_score(monkeypatch: MonkeyPatch) -> None
+⋮----
+mock_metrics = [
+mock_response = MetricOutputList(metrics=mock_metrics)
+mock_model = MagicMock()
+⋮----
+mock_config = MagicMock()
+⋮----
+scorer = LLMScorer(config=mock_config)
+task_data = ["Step 1: Do X", "Step 2: Do Y"]
+metrics_to_score = [
+result = scorer.score(task_data, metrics_to_score)
+⋮----
+called_args = mock_model.get_structured_response.call_args[0]
+</file>
+
+<file path="tests/unit/test_steelthread.py">
+def test_run_evals() -> None
+⋮----
+mock_portia = Mock()
+mock_config = Mock()
+⋮----
+mock_runner_instance = mock_runner.return_value
+⋮----
+def test_process_stream() -> None
+</file>
+
+<file path="tests/unit/utils.py">
+def get_test_config(**kwargs) -> Config
+def get_test_plan_run() -> tuple[Plan, PlanRun]
+⋮----
+step1 = Step(
+plan = Plan(
+plan_run = PlanRun(plan_id=plan.id, current_step_index=0, end_user_id="test")
+</file>
+
+<file path=".env.example">
+OPENAI_API_KEY=""
+PORTIA_API_KEY=""
+ANTHROPIC_API_KEY=""
+MISTRAL_API_KEY=""
+GOOGLE_API_KEY=""
+AZURE_OPENAI_API_KEY=""
+AZURE_OPENAI_ENDPOINT=""
+</file>
+
+<file path=".gitignore">
+dist
+__pycache__
+.coverage
+.coverage.*
+test_harness.py
+htmlcov
+docs
+.venv
+*.env
+.vscode
+.portia
+scratch
+.DS_Store
+</file>
+
+<file path=".pre-commit-config.yaml">
+repos:
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+-   repo: local
+    hooks:
+      - id: pyright
+        name: Pyright
+        entry: uv run pyright
+        language: system
+        pass_filenames: false
+        verbose: true
+</file>
+
+<file path=".python-version">
+3.12
+</file>
+
+<file path="CODE_OF_CONDUCT.md">
+# Contributor Covenant Code of Conduct
+
+## Our Pledge
+
+In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to make participation in our project and our community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+
+## Our Standards
+
+Examples of behavior that contributes to creating a positive environment include:
+
+* Using welcoming and inclusive language
+* Being respectful of differing viewpoints and experiences
+* Gracefully accepting constructive criticism
+* Focusing on what is best for the community
+* Showing empathy towards other community members
+
+Examples of unacceptable behavior by participants include:
+
+* The use of sexualized language or imagery and unwelcome sexual attention or advances
+* Trolling, insulting/derogatory comments, and personal or political attacks
+* Public or private harassment
+* Publishing others' private information, such as a physical or electronic address, without explicit permission
+* Other conduct which could reasonably be considered inappropriate in a professional setting
+
+## Our Responsibilities
+
+Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to any instances of unacceptable behavior.
+
+Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct, or to ban temporarily or permanently any contributor for other behaviors that they deem inappropriate, threatening, offensive, or harmful.
+
+## Scope
+
+This Code of Conduct applies within all project spaces, and it also applies when an individual is representing the project or its community in public spaces.
+Examples of representing a project or community include using an official project e-mail address, posting via an official social media account, or acting as an appointed representative at an online or offline event. Representation of a project may be further defined and clarified by project maintainers.
+
+## Enforcement
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team directly on complaints@portialabs.ai. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. 
+Further details of specific enforcement policies may be posted separately.
+
+Project maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions as determined by other members of the project's leadership.
+
+## Attribution
+
+This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 1.4, available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.html
+
+[homepage]: https://www.contributor-covenant.org
+
+For answers to common questions about this code of conduct, see https://www.contributor-covenant.org/faq
+</file>
+
+<file path="CONTRIBUTING.md">
+# Contributing to Portia SDK 🏗️
+
+Thank you for your interest in contributing to Portia SDK! We welcome contributions that improve the library and help us build a great experience for the community.
+
+## What to contribute
+* **Paid issue contributions** We post paid contributions to our issues list for which we will remunerate contributions. Please see the guidelines [below](https://github.com/portiaAI/portia-sdk-python/blob/main/CONTRIBUTING.md#paid-contributions).
+* **Documentation** Tutorials, how-to guides and revisions to our existing docs go a long way in making our repo easier to setup and use
+* **Examples** Show our community what you can do with our SDK. We particularly encourage end-to-end, real-world applications
+* **Bug reports** Please include a detailed method to reproduce any bugs you spot. We would be grateful if you give the [Issue Tracker](https://github.com/portiaAI/portia-sdk-python/issues) a quick skim first to avoid duplicates 🙌
+* **Bug fixes** Those are our favourites! Please avoid breaking changes. The next section has some helpful tips for that.
+* **Feedback** Help us be better. Come chat to us on [Discord](https://discord.gg/DvAJz9ffaR) about your experience using the SDK 🫶
+
+⚠️ **A note on new features** If you have something in mind, please give us a shout on our Discord channel. Features like new core abstractions, changes to infra or to dependencies will require careful consideration before we can move forward with them.
+
+## Paid contributions
+Paid contributions are shown in the [Issue](https://github.com/portiaAI/portia-sdk-python/issues) list with the monetary amount shown as follows [£20]. If an issue does not include a monetary amount, it indicates that fixing it will not be remunerated (though we appreciate it greatly!). Please bear in mind the following rules for paid contributions:
+* If you wish to work on a paid contribution you should comment on the issue indicating that you want to work on it and we'll assign it to you. You then have a week to submit the code for the issue or else it will be unassigned from you. If the code is not submitted in this time, and you are unassigned, you are not permitted to request that you work on that issue again.
+* Contributors can have only a single assigned issue at a time.
+* We expect paid contributions to require no more than 1 major review (i.e broader suggestions on direction), and 4 minor reviews. If more than this is required, the contribution will not be remunerated.
+* Once your feature is ready for review, please email code-submission@portialabs.ai with a link to the PR and we will review it.
+
+### Getting paid
+* Once you have contributed and submitted a paid contribution, please email code-submission@portialabs.ai including a link to the PR you made and a screenshot of the Github accounts profile page that authored the PR to prove your identiy. If you are using a different currency we will provide the remuneration at the local exchange rate.
+
+## How to contribute
+
+1. **Fork the Repository**: Start by forking the repository and cloning it locally.
+2. **Create a Branch**: Create a branch for your feature or bug fix. Use a descriptive name for your branch (e.g., `fix-typo`, `add-feature-x`).
+3. **Install the dependencies** We use uv to manage dependencies. Run ``uv install --all-extras``
+4. **Make Your Changes**: Implement your changes in small, focused commits. Be sure to follow our linting rules and style guide.
+5. **Run Tests**: If your changes affect functionality, please test thoroughly 🌡️ Details on how run tests are in the **Tests** section below.
+6. **Lint Your Code**: We use [ruff](https://github.com/charliermarsh/ruff) for linting. Please ensure your code passes all linting checks. We prefer per-line disables for rules rather than global ignores, and please leave comments explaining why you disable any rules.
+7. **Open a Pull Request**: Once you're happy with your changes, open a pull request. Ensure that your PR description clearly explains the changes and the problem it addresses. The **Release** section below has some useful tips on this process.
+8. **Code Review**: Your PR will be reviewed by the maintainers. They may suggest improvements or request changes. We will do our best to review your PRs promptly but we're still a tiny team with limited resource. Please bear with us 🙏
+10. **Merge Your PR**: Once approved, the author of the PR can merge the changes. 🚀
+
+## Linting
+
+We lint our code using [Ruff](https://github.com/astral-sh/ruff). We also have [pre-commit](https://pre-commit.com/) setup to allow running this easily locally.
+
+## Tests
+
+We write two types of tests:
+- Unit tests should mock out the LLM providers, and aim to give quick feedback. They should mock out LLM providers.
+- Integration tests actually call LLM providers, are much slower but test the system works fully.
+
+To run tests:
+- Run all tests with `uv run pytest`.
+- Run unit tests with `uv run pytest tests/unit`.
+- Run integration tests with `uv run pytest tests/integration`.
+
+We utilize [pytest-parallel](https://pypi.org/project/pytest-parallel/) to execute tests in parallel. You can add the `--workers=4` argument to the commands above to run in parallel. If you run into issues running this try setting `export NO_PROXY=true` first.
+
+## Release
+
+Releases are controlled via Github Actions and the version field of the `pyproject.toml`. To release:
+
+1. Create a PR that updates the version field in the `pyproject.toml`.
+2. Merge the PR to main.
+3. Github Actions will create a new tag and push the new version to PyPi.
+
+## Contributor License Agreement (CLA)
+
+By submitting a pull request, you agree to sign our Contributor License Agreement (CLA), which ensures that contributions can be included in the project under the terms of our current [license](https://github.com/portiaAI/portia-sdk-python/edit/main/CONTRIBUTING.md#:~:text=CONTRIBUTING.md-,LICENSE,-Logo_Portia_Stacked_Black.png). We will ask you to sign this CLA when submitting your first contribution.
+
+## Thank you
+
+Thank you for contributing to Portia SDK Python!
+</file>
+
+<file path="example.py">
+config = Config.from_default(
+st = SteelThread()
+⋮----
+portia = Portia(config)
+⋮----
+class EmojiEvaluator(Evaluator)
+⋮----
+string_to_score = (
+emoji_pattern = re.compile(
+emojis = emoji_pattern.findall(string_to_score)
+emoji_count = len(emojis)
+expected_emojis = int(test_case.get_custom_assertion("expected_emojis") or 2)
+score = min(emoji_count / int(expected_emojis), 1.0)
+⋮----
+city = ctx.kwargs.get("city", "").lower()
+⋮----
+portia = Portia(
+⋮----
+class MyEvaluator(Evaluator)
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2025 Portia AI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="pyproject.toml">
+[project]
+name = "steel-thread"
+version = "0.1.15"
+description = "Portia Labs Eval framework for evaluating agentic workflows."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+keywords = [
+    "LLM",
+    "agentic",
+    "workflow",
+]
+classifiers = ["Development Status :: 3 - Alpha"]
+
+dependencies = [
+    "httpx>=0.28.1",
+    "portia-sdk-python[all]>=0.6.2",
+    "pydantic>=2.11.7",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pyright>=1.1.403",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "ruff>=0.12.5",
+    "pytest-httpx>=0.35.0",
+]
+
+[project.urls]
+Homepage = "https://www.portialabs.ai/"
+Repository = "https://github.com/portiaAI/steel_thread"
+Documentation = "https://docs.portialabs.ai"
+
+
+[tool.hatch.build.targets.sdist]
+include = ["steelthread"]
+
+[tool.hatch.build.targets.wheel]
+include = ["steelthread"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pyright]
+ignore = ["scratch/*"]
+
+[tool.ruff]
+line-length=100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "COM812",  # Disables checks for trailing commas as they are fixed by the formatted and running both is not recommended.
+  "D203",    # Disables checks for having a blank line before a class docstring. We instead have no-blank-line-before-class (D211) enabled.
+  "D213",    # Disables checks for multi-line docstrings not starting on the first line. We instead have multi-line-summary-first-line (D212) enabled.
+  "EM101",   # Disables checks for missing exception message arguments. We prefer single-line exception statements for simplicity and terseness.
+  "EM102",   # Disables checks for f-string usage in exception messages. We prefer single-line exception statements with f-strings for simplicity and terseness.
+  "TRY003",  # Disables checks for long error messages. We prefer to provide as much context to users as possible but want to avoid a proliferation of error classes.
+  "FBT001",  # Disables checks for unused type parameters. We prefer booleans for simple parameters rather than unnecessary enums.
+  "FBT002",  # Disables checks for unused type parameters. We prefer booleans for simple parameters rather than unnecessary enums.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"example.py" = ["ALL"]
+"**/tests/*" = [
+  "S101",    # Disables check for asserts. Asserts in test cases can be useful.
+  "PLR2004", # Disables magic number checks. Its normal to assert using magic numbers for things like array length.
+  "INP001",  # Disables checks for implicit namespace packages. Tests are not part of the package.
+  "SLF001",  # Disables checks for private member access. We call private methods in tests.
+  "C901",    # Disables checks for too many lines in function. Tests are allowed to be longer.
+]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = [
+  "pydantic.BaseModel", # Tells ruff that BaseModel instances need to be evaluated at runtime.
+]
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true  # Allows **kwargs: Any in type signatures.
+
+[tool.ruff.lint.pylint]
+max-args = 10
+
+[tool.setuptools.package-data]
+portia = ["templates/**/*.jinja"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:Failing to pass a value to the 'type_params' parameter of 'typing.ForwardRef._evaluate':DeprecationWarning",  # LangChain
+    "ignore::DeprecationWarning:langchain_core.load.serializable",  # LangChain/Pydantic
+    "ignore:Support for class-based `config` is deprecated.*:DeprecationWarning:pydantic._internal._config",  # Pydantic V2 deprecation
+    "ignore:^builtin type SwigPyPacked has no __module__ attribute$:DeprecationWarning",
+    "ignore:^builtin type SwigPyObject has no __module__ attribute$:DeprecationWarning",
+    "ignore:^builtin type swigvarlink has no __module__ attribute$:DeprecationWarning",
+]
+addopts = [
+  "--cov=steelthread",
+  "--cov-report=term-missing",
+  "--cov-report=html",
+  "--import-mode=importlib"
+]
+markers = [
+    "daily: marks tests as expensive daily tests (deselect with '-m \"not daily\"')",
+]
+
+[tool.coverage.run]
+omit = [
+    "*/tests/*", # Don't cover test files themselves
+    "example.py", # Don't cover example
+    "*/_unstable/**",  # Don't check _unstable files
+    "portia/cli.py",  # Best effort test coverage
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    "pragma: no cover",
+]
+
+[[tool.pydoc-markdown.loaders]]
+type = "python"
+
+[[tool.pydoc-markdown.processors]]
+type = "filter"
+expression = "not 'test' in name and not 'cli' in name and not 'prefixed_uuid' in name and not 'common' in name and not 'templates' in name and not '_unstable' in name and default()"
+skip_empty_modules = true
+
+[[tool.pydoc-markdown.processors]]
+type = "smart"
+
+[[tool.pydoc-markdown.processors]]
+type = "crossref"
+
+[tool.pydoc-markdown.renderer]
+type = "docusaurus"
+relative_output_path="evals"
+sidebar_top_level_label=""
+
+[tool.licensecheck]
+using = "uv"
+ignore_packages = [
+  "mistralai", # MistralAI is Apache 2.0 licensed: https://github.com/mistralai/client-python?tab=Apache-2.0-1-ov-file
+]
+</file>
+
+<file path="README.md">
+# SteelThread: Agent Evaluation Framework
+
+**SteelThread** is a flexible evaluation framework built around Portia, designed to support robust **evals** and **stream based** testing of agentic workflows. It enables configurable datasets, custom metric definitions including both deterministic and LLM-based judging, and stubbed tool behaviors for reproducible and interpretable scoring. But its strongest suite is that **you can add successful agent runs from the dashboard directly into your datasets rather than have to build those ground truth from scratch**. This means Eval sets that are up to date and easy to maintain at all times.
+
+We offer two distinct types of monitoring through **SteelThread**:
+- **Streams** are dynamic datasets sampled automatically from your latest plans and plan runs, allowing you to measure performance in production.
+- **Evals** are static datasets designed to be run multiple times to allow you to analyze how changes to your agents affect performance.
+
+For access to the full documentation please visit [our docs](https://docs.portialabs.ai/evals-steel-thread).
+SteelThread relies on access to agent activity in Portia cloud (queries, plans, plan runs). You will need a `PORTIA_API_KEY` to get started. Get one for free from your Portia dashboard's "Manage API keys" tab.
+
+---
+
+## **Install using your framework of choice**
+
+#### `pip`
+```bash
+pip install steel-thread
+```
+#### `poetry`
+```bash
+poetry add steel-thread
+```
+#### `uv`
+```bash
+uv add steel-thread
+```
+
+---
+
+## **Create a dataset**
+If you're new to Portia you may not have agent runs in the cloud just yet. so let's start by creating those. Run the query "Read the user feedback notes in local file {path}, and call out recurring themes in their feedback. Use lots of ⚠️ emojis when highlighting areas of concern." where `path` is a local file you can put a couple of lines of fictitious user feedback in. Here's the script to save you same time:
+
+```python
+from portia import Portia
+
+path = "./uxr/calorify.txt" # TODO: change to your desired path
+query =f"Read the user feedback notes in local file {path}, \
+            and call out recurring themes in their feedback. \
+                Use lots of ⚠️ emojis when highlighting areas of concern."
+
+Portia().run(query=query)
+```
+---
+
+## **Basic Usage with Streams**
+
+Below is example code to process a stream. Before running it make sure you set up your stream from the Portia dashboard's Observability tab so you can then pass it to the `process_stream` method below. This method will use the built-in set of Stream evaluators to give you data out of the box.
+
+```python
+from portia import Config
+from steelthread.steelthread import SteelThread, StreamConfig
+from dotenv import load_dotenv
+
+
+load_dotenv(override=True)
+
+config = Config.from_default()
+
+# Setup SteelThread instance and process stream
+st = SteelThread()
+st.process_stream(
+    StreamConfig(
+        # The stream name is the name of the stream we created in the dashboard.
+        stream_name="your-stream-name-here",
+        config=config,
+    )
+)
+```
+
+---
+
+## Features
+
+### Custom Metrics
+Define your own evaluators by subclassing `Evaluator`:
+
+```python
+from steelthread.evals import Evaluator, EvalMetric
+
+class EmojiEvaluator(Evaluator):
+    def eval_test_case(self, test_case,plan, plan_run, metadata):
+        out = plan_run.outputs.final_output.get_value() or ""
+        count = out.count("🌞")
+        return EvalMetric.from_test_case(
+            test_case=test_case,
+            name="emoji_score",
+            score=min(count / 2, 1.0),
+            description="Emoji usage"
+        )
+```
+
+### Tool Stubbing
+
+Stub tool responses deterministically for fast and reproducible testing:
+
+```python
+from portia import Portia, Config, DefaultToolRegistry
+from steelthread.portia.tools import ToolStubRegistry, ToolStubContext
+
+
+config = Config.from_default()
+
+# Define stub behavior
+def weather_stub_response(
+    ctx: ToolStubContext,
+) -> str:
+    """Stub for weather tool to return deterministic weather."""
+    city = ctx.kwargs.get("city", "").lower()
+    if city == "sydney":
+        return "33.28"
+    if city == "london":
+        return "2.00"
+
+    return f"Unknown city: {city}"
+
+# Run evals with stubs 
+portia = Portia(
+    config,
+    tools=ToolStubRegistry(
+        DefaultToolRegistry(config),
+        stubs={
+            "weather_tool": weather_stub_response,
+        },
+    ),
+)
+```
+
+### `Metric Reporting`
+
+**SteelThread** is designed around plugable metrics backends. By default metrics are logged and sent to Portia Cloud for visualization but you can add additional backends via the config options.
+
+---
+
+## 🧪 End-to-end example with Evals
+
+Let's see how everything fits together. Create an Eval dataset in the dashboard from the plan run we made in the **Create a dataset** section. Navigate to the "Evaluations" tab of the dashboard, create a new eval set from existing data and select the relevant plan run. Record the name you bestowed upon your Eval dataset as you will to pass it to the evaluators in the code below, which you are now ready to run. This code:
+* Uses a custom evaluator to count ⚠️ emojis in the output.
+* Stubs the `file_reader_tool` with static text.
+* Run the evals for the dataset you create to compute the emoji count metric over it.
+
+Feel to mess around with the output from the tool stub and re-run these Evals a few times to see the progression in scoring.
+
+```python
+from portia import Portia, Config, DefaultToolRegistry
+from steelthread.steelthread import SteelThread, EvalConfig
+from steelthread.evals import Evaluator, EvalMetric
+from steelthread.portia.tools import ToolStubRegistry, ToolStubContext
+
+
+# Custom evaluator
+class EmojiEvaluator(Evaluator):
+    def eval_test_case(self, test_case,plan, plan_run, metadata):
+        out = plan_run.outputs.final_output.get_value() or ""
+        count = out.count("⚠️")
+        return EvalMetric.from_test_case(
+            test_case=test_case,
+            name="emoji_score",
+            score=min(count / 2, 1.0),
+            description="Emoji usage",
+            explanation=f"Found {count} ⚠️ emojis in the output.",
+            actual_value=str(count),
+            expectation="2"
+        )
+
+# Define stub behavior
+def file_reader_stub_response(
+    ctx: ToolStubContext,
+) -> str:
+    """Stub response for file reader tool to return static file content."""
+    filename = ctx.kwargs.get("filename", "").lower()
+
+    return f"Feedback from file: {filename} suggests \
+        ⚠️ 'One does not simply Calorify' \
+        and ⚠️ 'Calorify is not a diet' \
+        and ⚠️ 'Calorify is not a weight loss program' \
+        and ⚠️ 'Calorify is not a fitness program' \
+        and ⚠️ 'Calorify is not a health program' \
+        and ⚠️ 'Calorify is not a nutrition program' \
+        and ⚠️ 'Calorify is not a meal delivery service' \
+        and ⚠️ 'Calorify is not a meal kit service' "
+
+
+config = Config.from_default()
+
+# Run evals with stubs 
+portia = Portia(
+    config,
+    tools=ToolStubRegistry(
+        DefaultToolRegistry(config),
+        stubs={
+            "file_reader_tool": file_reader_stub_response,
+        },
+    ),
+)
+
+SteelThread().run_evals(
+    portia,
+    EvalConfig(
+        eval_dataset_name="your-dataset-name-here", #TODO: replace with your dataset name
+        config=config,
+        iterations=5,
+        evaluators=[EmojiEvaluator(config)]
+    ),
+)
+```
+
+---
+
+## 🧪 Testing
+
+Write tests for your metrics, plans, or evaluator logic using `pytest`:
+
+```bash
+uv run pytest tests/
+```
+
+---
+</file>
+
+</files>

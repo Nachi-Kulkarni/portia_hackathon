@@ -1,0 +1,3253 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where comments have been removed, empty lines have been removed, content has been compressed (code blocks are separated by ⋮---- delimiter), security check has been disabled.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Code comments have been removed from supported file types
+- Empty lines have been removed from all files
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Security check has been disabled - content may contain sensitive information
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+ai-research-agent/
+  .github/
+    workflows/
+      run.yml
+  .env.example
+  agent.py
+  conversation_config.yaml
+  discord_bot.py
+  pyproject.toml
+  README.md
+discord-knowledge-bot/
+  bot/
+    ask.py
+    discord_server.py
+    loader.py
+    weaviate.py
+  .env.example
+  .gitignore
+  .python-version
+  compose.yaml
+  pyproject.toml
+  README.md
+get-started-google-tools/
+  .env.example
+  main.py
+  pyproject.toml
+  README.md
+getting-started/
+  .env.example
+  .gitignore
+  .python-version
+  1_github_oauth.py
+  2_tools_end_users_llms.py
+  3_mcp.py
+  4_browser_use.py
+  LICENSE
+  pyproject.toml
+  README.md
+grocery-manager-agent/
+  .env.example
+  .gitignore
+  grocery_tool.py
+  main.py
+  notes_agent.py
+  pyproject.toml
+  README.md
+  shopping_agent.py
+improving-planning-with-ull/
+  .env.example
+  .gitignore
+  .python-version
+  01_ull_vague_prompt_no_examples.py
+  02_ull_good_prompt_no_examples.py
+  03_ull_static_example_plans.py
+  04_ull_create_example_plans.py
+  05_ull_vague_with_examples.py
+  common.py
+  mock_tools.py
+  pyproject.toml
+  README.md
+local-llm/
+  sample_obsidian_vault/
+    .obsidian/
+      app.json
+      appearance.json
+      core-plugins.json
+      graph.json
+      workspace.json
+    DDD.md
+    Microservices.md
+    Pokemon.md
+    Welcome.md
+  tests/
+    test_visualization.py
+  tools/
+    visualization_tool.py
+  main.py
+  pyproject.toml
+  README.md
+outreach-agent/
+  .env.example
+  agent.py
+  pyproject.toml
+  README.md
+  research_and_connect.txt
+  retrieve_potential_connections.txt
+planning-poker/
+  .env.example
+  .python-version
+  context.md
+  main.py
+  mainethan.py
+  pyproject.toml
+  README.md
+refund-agent-mcp/
+  .env.example
+  .gitignore
+  pyproject.toml
+  README.md
+  refund_agent_with_local_mcp.py
+  refund_agent.py
+  refund_policy.txt
+  stripe_setup.py
+  test.sh
+simple-planning-agent/
+  .env.example
+  main.py
+  pyproject.toml
+  README.md
+.gitignore
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+LICENSE
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="ai-research-agent/.github/workflows/run.yml">
+name: Daily AI Research Agent Run
+on:
+  schedule:
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+    - name: Install dependencies
+      run: poetry install
+    - name: Install FFmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+    - name: Run AI Research Agent
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        PORTIA_API_KEY: ${{ secrets.PORTIA_API_KEY }}
+      run: poetry run python agent.py
+    - name: Send podcast link
+      uses: slackapi/slack-github-action@v2.0.0
+      with:
+        method: files.uploadV2
+        token: ${{ secrets.SLACK_BOT_TOKEN }}
+        errors: true
+        payload: |
+          channel_id: C08D31BNFGV
+          initial_comment: "And here's a podcast of the above..."
+          file: "./portia-agent-examples/ai-research-agent/data/audio/podcast_latest.mp3"
+          filename: "podcast_latest.mp3"
+</file>
+
+<file path="ai-research-agent/.env.example">
+PORTIA_API_KEY="Replace with a key from app.portialabs.ai"
+OPENAI_API_KEY=="Replace with a key from openai.com"
+
+# If you want the agent to post to discord as well as slack:
+DISCORD_BOT_TOKEN="Replace with discord bot token"
+DISCORD_CHANNEL_ID="Replace with channel id"
+</file>
+
+<file path="ai-research-agent/agent.py">
+class ResearchAgentOutput(BaseModel)
+⋮----
+new_post_text: str = Field(
+class PodcastToolSchema(BaseModel)
+⋮----
+summary: str = Field(
+details: str = Field(
+class PodcastTool(Tool[str])
+⋮----
+id: str = "podcast_tool"
+name: str = "Podcast Tool"
+description: str = (
+args_schema: type[BaseModel] = PodcastToolSchema
+output_schema: tuple[str, str] = (
+def run(self, _: ToolRunContext, summary: str, details: str) -> str
+⋮----
+config_path = os.path.join(
+⋮----
+conversation_config = yaml.safe_load(config_file)
+⋮----
+llm_model_name = "gemini-1.5-pro-latest"
+api_key_label = "GEMINI_API_KEY"
+tts_model = "gemini"
+⋮----
+llm_model_name = "gpt-4o"
+api_key_label = "OPENAI_API_KEY"
+tts_model = "openai"
+audio_file = generate_podcast(
+latest_podcast_path = os.path.join(
+⋮----
+def run_agent() -> ResearchAgentOutput
+⋮----
+config = Config.from_default(
+tools = DefaultToolRegistry(config) + [PodcastTool()]
+portia = Portia(
+plan = portia.plan(
+⋮----
+user_input = input("Are you happy with the plan? (y/n):\n")
+⋮----
+run = portia.run_plan(
+</file>
+
+<file path="ai-research-agent/conversation_config.yaml">
+conversation_style:
+  - "engaging"
+  - "fast-paced"
+  - "enthusiastic"
+roles_person1: "main summarizer"
+roles_person2: "questioner/clarifier"
+dialogue_structure:
+  - "Introduction"
+  - "Main Content Summary"
+  - "Conclusion"
+podcast_name: "Portia Daily AI News Roundup"
+output_language: "English"
+engagement_techniques:
+  - "rhetorical questions"
+  - "anecdotes"
+  - "analogies"
+  - "humor"
+creativity: 0.7
+user_instructions: "Connect the news with AI agents if possible"
+text_to_speech:
+  output_directories:
+    transcripts: "./data/transcripts"
+    audio: "./data/audio"
+  openai:
+    default_voices:
+      question: "echo"
+      answer: "shimmer"
+    model: "tts-1-hd"
+  audio_format: "mp3"
+</file>
+
+<file path="ai-research-agent/discord_bot.py">
+bot = discord.Bot()
+⋮----
+@bot.event
+async def on_ready()
+⋮----
+result = await asyncio.get_event_loop().run_in_executor(None, run_agent)
+channel_id = int(os.getenv("DISCORD_CHANNEL_ID"))
+channel = bot.get_channel(channel_id)
+podcast_path = os.path.join(
+⋮----
+file = discord.File(podcast_path, filename="ai_news_podcast.mp3")
+message_parts = [
+</file>
+
+<file path="ai-research-agent/pyproject.toml">
+[project]
+name = "ai_research_agent"
+version = "0.1.0"
+description = "A toy agent to receive and summarise AI news emails"
+authors = [{ name = "Portia AI", email = "hello@portialabs.ai" }]
+requires-python = "~=3.13"
+dependencies = [
+    "portia-sdk-python>=0.6.2,<0.7",
+    "python-dotenv>=1.0.1,<2",
+    "podcastfy>=0.4.1,<0.5",
+    "audioop-lts>=0.2.1,<0.3",
+    "tornado>=6.5.0",
+    "py-cord>=2.6.1",
+]
+
+[tool.uv]
+package = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+</file>
+
+<file path="ai-research-agent/README.md">
+# AI Research Agent
+
+## Introduction
+
+This example demonstrates how to use Portia AI to build an agent that can receive emails about a topic, summarise them and then create a short (2-3 mins) podcast from them which is shared to slack / discord. It utilises the [Gmail tools](https://docs.portialabs.ai/gmail-tools) and [Slack tools](https://docs.portialabs.ai/portia-tools/slack/) provided by Portia Cloud to read emails about 'AI' and post the summary to slack, as well as creating a new local [Podcastfy](https://github.com/souzatharsis/podcastfy/tree/main) for podcast creation.
+
+At Portia, we have an email inbox that is signed up to multiple AI newsletters. We then use this agent to summarise the emails and post the summary along with the podcast to our #ai-news slack channel and to our discord server once per day. More details can be found in [this blog post](https://dev.to/portia-ai/how-i-built-an-ai-agent-that-turns-daily-ai-news-into-a-commute-sized-podcast-44pg).
+
+## Prerequisites
+
+- A Gmail account to receive emails from
+- A Portia AI API key: You can get one from [app.portialabs.ai](https://app.portialabs.ai) > API Keys.
+- An OpenAI API key
+- If you want to use Gemini for the podcast creation (this can give better quality speech): A Gemini API key
+- A slack client ID and secret: You can get these by following the steps [here](https://docs.portialabs.ai/portia-tools/slack/send-message#configure-your-slack-tools-with-portia-ai)
+- We use uv to manage dependencies. You can install it from [here](https://docs.astral.sh/uv/getting-started/installation/).
+- If you want the agent to post to discord as well as slack, you will need a discord bot token and a discord channel id. Follow the steps [here](https://discord.com/developers/docs/quick-start/getting-started) to create a Discord bot and get the token. You should also follow the steps to install the bot into your server. Then, follow the steps [here](https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID) to find the channel ID of the channel you want your bot to be active in. Note that you'll need to enable developer mode in Discord to get the IDs.
+
+## Setup
+
+1. Clone the repository and select this folder.
+2. Copy the `.env.example` file to `.env` and add your API keys to it.
+3. Enter the slack client ID and secret into the [Portia dashboard](https://app.portialabs.ai/dashboard/org-settings) to allow Portia to interact with slack.
+4. Install the dependencies by running `uv sync`.
+5. Install 'ffmpeg' by following the steps [here](https://chatgpt.com/share/67cf7d0f-fd38-8007-9d94-2bae48fd7311) - this is needed for the podcast generation.
+6. If you want to improve the quality of the speech in your podcast, follow the steps [here](https://github.com/souzatharsis/podcastfy/blob/a68ea95e96952f34338e86c8ef6395f402d53830//usage/config.md#setting-up-google-tts-model) to set up a Gemini API key capable of using Google's Multi-Speaker voices, and out this key into your .env fila as: `GEMINI_API_KEY=<key>`.
+7. If you only want the agent to post to slack, run the `agent.py` file by running `uv run agent.py`. If you would also like to post to discord, run `uv run discord_bot.py`
+
+## Running the example
+
+The first time you run the agent, you will be prompted to authenticate with Google. Once this has been done once, Portia cloud will handle future authentications for you and so the plan should run without any clarifications. You can then set this up to run daily as a cron job. There are many way to do this - at Portia, we use a scheduled Github Action. For this, you'll need to add your PORTIA_API_KEY and OPENAI_API_KEY to the Github secrets by following the steps [here](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository) and then setup the workflow using the code in `.github/workflows/run.yml`.
+</file>
+
+<file path="discord-knowledge-bot/bot/ask.py">
+config = Config.from_default(
+registry = DefaultToolRegistry(config) + InMemoryToolRegistry.from_local_tools(
+portia = Portia(config, tools=registry)
+def get_answer(question: str) -> str | None
+⋮----
+full_question = (
+run = portia.run(full_question)
+</file>
+
+<file path="discord-knowledge-bot/bot/discord_server.py">
+bot = discord.Bot()
+⋮----
+@bot.event
+async def on_ready()
+⋮----
+@bot.slash_command(name="hello", description="Say hello to the bot")
+async def hello(ctx: discord.ApplicationContext)
+⋮----
+async def ask(ctx: discord.ApplicationContext, question: str)
+⋮----
+response = get_answer(question)
+</file>
+
+<file path="discord-knowledge-bot/bot/loader.py">
+def load_docs_into_weaviate(domains: list[str])
+⋮----
+all_docs = []
+⋮----
+loader = RecursiveUrlLoader(url=domain)
+docs = loader.load()
+⋮----
+domains = {"https://docs.portialabs.ai"}
+</file>
+
+<file path="discord-knowledge-bot/bot/weaviate.py">
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+VECTORISER_CONFIG = Configure.Vectorizer.text2vec_openai(
+RETRIEVAL_PROMPT = ChatPromptTemplate.from_messages(
+⋮----
+WEAVIATE_CLIENT = weaviate.connect_to_local(
+⋮----
+WEAVIATE_CLIENT = weaviate.connect_to_weaviate_cloud(
+⋮----
+SDK_DOCS_COLLECTION_NAME = "SDK_Docs"
+DOCS_COLLECTION = WEAVIATE_CLIENT.collections.get(SDK_DOCS_COLLECTION_NAME)
+⋮----
+def insert_docs_into_weaviate(documents: list[Document])
+⋮----
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+⋮----
+all_splits = text_splitter.split_documents(documents)
+⋮----
+def close_weaviate()
+class RAGQueryDBToolSchema(BaseModel)
+⋮----
+question: str = Field(
+class RAGQueryDBTool(Tool[str])
+⋮----
+id: str = "rag_query_tool"
+name: str = "RAG Query Tool"
+description: str = "Used to retrieve information from the Portia SDK docs."
+args_schema: type[BaseModel] = RAGQueryDBToolSchema
+output_schema: tuple[str, str] = (
+def run(self, _: ToolRunContext, question: str) -> str
+⋮----
+result = DOCS_COLLECTION.query.near_text(
+</file>
+
+<file path="discord-knowledge-bot/.env.example">
+PORTIA_API_KEY="Replace with a key from app.portialabs.ai"
+OPENAI_API_KEY="Replace with a key from openai.com"
+WEAVIATE_API_KEY="Replace with your Weaviate API key"
+WEAVIATE_URL="Replace with your Weaviate URL"
+DISCORD_BOT_TOKEN="Replace with your Discord bot token"
+DISCORD_SERVER_ID="Replace with your Discord server ID"
+DISCORD_CHANNEL_ID="Replace with your Discord channel ID"
+</file>
+
+<file path="discord-knowledge-bot/.gitignore">
+.venv
+.env
+vector_store
+__pycache__
+*.pyc
+</file>
+
+<file path="discord-knowledge-bot/.python-version">
+3.12
+</file>
+
+<file path="discord-knowledge-bot/compose.yaml">
+services:
+  weaviate:
+    command:
+    - --host
+    - 0.0.0.0
+    - --port
+    - '8080'
+    - --scheme
+    - http
+    image: cr.weaviate.io/semitechnologies/weaviate:1.28.5
+    ports:
+    - 8080:8080
+    - 50051:50051
+    volumes:
+    - weaviate_data:/var/lib/weaviate
+    restart: on-failure:0
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      ENABLE_API_BASED_MODULES: 'true'
+      ENABLE_MODULES: 'text2vec-ollama,generative-ollama'
+      CLUSTER_HOSTNAME: 'node1'
+volumes:
+  weaviate_data:
+</file>
+
+<file path="discord-knowledge-bot/pyproject.toml">
+[project]
+name = "bot"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Nathan Perkins",email = "nathanjp91@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4"
+dependencies = [
+    "langchain-text-splitters (>=0.3.5,<0.4.0)",
+    "langchain-community (>=0.3.16,<0.4.0)",
+    "langchain-core (>=0.3.33,<0.4.0)",
+    "langchain-openai (>=0.3,<0.4)",
+    "py-cord (>=2.6.1,<3.0.0)",
+    "portia-sdk-python (>=0.6.2,<0.7.0)",
+    "langchain (>=0.3.18,<0.4.0)",
+    "markdownify (>=0.14.1,<0.15.0)",
+    "tiktoken (>=0.9.0,<0.10.0)",
+    "ruff (>=0.9.6,<0.10.0)",
+    "tqdm (>=4.67.1,<5.0.0)",
+    "weaviate-client (>=4.11.0,<5.0.0)",
+    "audioop-lts (>=0.2.1,<0.3.0) ; python_version >= \"3.13\"",
+]
+
+[tool.uv]
+package = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+</file>
+
+<file path="discord-knowledge-bot/README.md">
+# Portia SDK Discord Bot
+
+## Introduction
+
+This example demonstrates how to use Portia AI to build a Discord bot that uses public documentation and Github issues to answer user questions. It utilises the [Github Tools](https://docs.portialabs.ai/github-tools) provided by Portia Cloud to retrieve Github issues alongside a locally-implemented RAG tool to load and retrieve information from the Portia SDK documentation. For the vector database for our RAG tool, we use [Weaviate](https://weaviate.io/), which is an awesome AI-native vector database - see their quickstart guide [here](https://weaviate.io/developers/weaviate/quickstart). You can read more about the tools provided by Portia Cloud in the [Portia Cloud documentation](https://docs.portialabs.ai/), or about the SDK in the [Portia SDK documentation](https://docs.portialabs.ai/SDK/portia).
+
+## Prerequisites
+
+Before running this discord bot, you'll need the following:
+
+- Python 3.12: You can download it from [python.org](https://www.python.org/downloads/) or install it using [pyenv](https://github.com/pyenv/pyenv)
+- Poetry: We use poetry to manage dependencies. You can install it from [here](https://python-poetry.org/docs/#installation).
+- A Portia AI API key: You can get one from [app.portialabs.ai](https://app.portialabs.ai) > API Keys.
+- An OpenAI API key: You can get one from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+- A Weaviate URL & API key: Follow the steps [here](https://weaviate.io/developers/wcs/create-instance) to create a Weaviate instance and retrieve the URL and API key. Note that you'll need the admin API key as we'll be loading data into Weaviate as well as reading from it.
+- A Discord server ID and channel ID: Follow the steps [here](https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID) to find the server ID and channel ID
+of the server and channel you want your bot to be active in. Note that you'll need to enable developer mode in Discord to get the IDs.
+- A Discord bot token: Follow the steps [here](https://discord.com/developers/docs/quick-start/getting-started) to create a Discord bot and get the token. You should also follow the steps to install the bot into your server.
+
+
+## Setup
+
+1. Clone the repository and select this folder.
+2. Copy the `.env.example` file to `.env` and add your API keys to it.
+3. Install dependencies `poetry install`
+4. Load the docs into your Weaviate instance with `poetry run python -m bot.loader`
+5. Run the bot with `poetry run python -m bot.discord_server`
+6. You can then enter `/ask <question>` in the your discord channel to ask the bot a question.
+
+## Usage
+`docker compose up` to start a local instance of Weaviate. You can then set the `WEAVIATE_URL` in the env file to `localhost` and leave the `WEAVIATE_API_KEY` empty to use this local instance.
+`poetry run python -m bot.loader` to load the Portia SDK documentation into the vector database.
+`poetry run python -m bot.discord_server` to run the bot.
+`/ask <question>` to ask the bot a question on discord.
+
+## Understanding the code
+
+### Loading data into Weaviate
+
+`loader.py` is the entry point for the loader script. It recursively visits and collects pages from the Portia SDK documentation at https://docs.portialabs.ai. It then calls `insert_docs_into_weaviate` which chunks the text and then inserts it into Weaviate, where an OpenAI embedding model is used to embed the text before it is stored.
+
+Once this is done, you can use the explorer in Weaviate to view the data that has been loaded.
+
+### Running the bot
+
+`discord_server.py` is the entry point for the bot, defining when the bot is called from Discord. When the `/ask` command is used in the #ask-questions channel, the `get_answer` function in `ask.py` is called.
+
+Inside `ask.py`, a Portia agent is kicked off to answer the question. To answer the question, the agent utilises the tools in the Portia Cloud tool registry (which includes a tool for searching Github issues) as well as the `RAGQueryDBTool` tool defined in `weaviate.py`, which queries the Portia SDK docs that we have loaded into Weaviate.
+</file>
+
+<file path="get-started-google-tools/.env.example">
+PORTIA_API_KEY="Replace with a key from app.portialabs.ai"
+
+# Pick the model you want to use and delete the other keys
+OPENAI_API_KEY="Replace with a key from openai.com"
+MISTRAL_API_KEY="Replace with a key from mistral.ai"
+ANTHROPIC_API_KEY="Replace with a key from anthropic.com"
+</file>
+
+<file path="get-started-google-tools/main.py">
+outline = """
+⋮----
+receipient_email = input(
+constraints = []
+task = (
+⋮----
+my_config = Config.from_default()
+portia = Portia(
+plan = portia.plan(task())
+⋮----
+ready_to_proceed = False
+⋮----
+user_input = input("Are you happy with the plan? (y/n):\n")
+⋮----
+ready_to_proceed = True
+⋮----
+user_input = input("Any additional guidance for the planner?:\n")
+⋮----
+plan_run = portia.run_plan(plan)
+</file>
+
+<file path="get-started-google-tools/pyproject.toml">
+[project]
+name = "portia_get_started_google_tools"
+version = "0.1.0"
+description = "Get started with Google tools and Portia AI"
+authors = [{ name = "Portia AI", email = "hello@portialabs.ai" }]
+requires-python = ">=3.11,<4"
+dependencies = [
+    "portia-sdk-python>=0.6.2,<0.7.0",
+    "python-dotenv>=1.0.1,<2",
+]
+
+[tool.uv]
+package = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+</file>
+
+<file path="get-started-google-tools/README.md">
+# Get Started with Google Tools
+
+## Introduction
+
+This example demonstrates how to use Portia AI with Google Calendar and GMail tools to schedule a meeting and send an email. It demonstrates a number of key features of the [Portia SDK](https://github.com/portiaAI/portia-sdk-python) including explicit planning, clarification and authentication. You can read more about the SDK and these concepts in the [Portia SDK documentation](https://docs.portialabs.ai/SDK/portia).
+
+## Prerequisites
+
+- A Google Calendar and GMail account
+- The email address of someone you want to schedule a meeting with
+- A Portia AI API key: You can get one from [app.portialabs.ai](https://app.portialabs.ai) > API Keys.
+- An LLM API key for a supported model (e.g Anthropic, OpenAI or Mistral)
+- We use `uv` to manage dependencies. You can install it from [here](https://docs.astral.sh/uv/getting-started/installation/).
+
+## Setup
+
+1. Clone the repository and select this folder.
+2. Copy the `.env.example` file to `.env` and add your API keys to it.
+3. Run the `main.py` file by running `uv run main.py`.
+
+## Running the example
+
+When you run the `main.py` file, it will prompt you for your email address and the email address of the person who you wish to schedule a meeting with. It will then generate a plan to schedule a meeting and send an email to the recipient and display this to you before proceeding. As it iterates through the plan, you will be prompted to authenticate with Google for calendar and GMail.
+
+## Understanding the code
+
+The `main.py` file is the entry point for the example and has the following key parts:
+
+- Setup: The configuration and tools are setup.
+- Generate the plan: The plan is generated from the user query.
+- Iterate on the plan: The user is prompted to review the plan and provide additional guidance if needed.
+- Execute the plan: The plan is executed and the user is prompted to authenticate with Google for calendar and GMail.
+- Handle clarifications: [Clarifications](https://docs.portialabs.ai/understand-clarifications) are a core abstraction within the Portia SDK and allow for a structured conversation with the user. The code in the example shows how you can handle different types of abstraction that are returned by the SDK.
+</file>
+
+<file path="getting-started/.env.example">
+##
+## Needed for all examples:
+##
+
+# Needed for all examples. Get one from the dashboard: https://app.portialabs.ai/dashboard/api-keys
+PORTIA_API_KEY=
+# Set this if using OpenAI: https://platform.openai.com/account/api-keys
+OPENAI_API_KEY=
+## Alternatively, comment out OPENAI_API_KEY and set this if using Anthropic:
+## Obtain a key from: https://console.anthropic.com/settings/keys
+# ANTHROPIC_API_KEY=
+
+##
+## Optional (read example code docstring for each set of required config)
+##
+
+# Get a Tavily key from https://app.tavily.com/home
+TAVILY_API_KEY=
+
+# Get an OpenWeather key: https://home.openweathermap.org/api_keys
+OPENWEATHERMAP_API_KEY=
+
+# Local Chrome configuration:
+PORTIA_BROWSER_LOCAL_CHROME_EXEC=
+PORTIA_BROWSER_LOCAL_EXTRA_CHROMIUM_ARGS=
+
+# Sign up for a Browserbase account: https://www.browserbase.com/overview
+BROWSERBASE_API_KEY=
+BROWSERBASE_PROJECT_ID=
+</file>
+
+<file path="getting-started/.gitignore">
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+# .python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# UV
+#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#uv.lock
+
+# poetry
+#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
+#poetry.lock
+
+# pdm
+#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+#pdm.lock
+#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
+#   in version control.
+#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
+.pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
+#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+#.idea/
+
+# Ruff stuff:
+.ruff_cache/
+
+# PyPI configuration file
+.pypirc
+</file>
+
+<file path="getting-started/.python-version">
+3.13
+</file>
+
+<file path="getting-started/1_github_oauth.py">
+task0 = "Star the github repo for portiaAI/portia-sdk-python"
+task1 = """
+my_config = Config.from_default(storage_class=StorageClass.CLOUD)
+portia = Portia(
+plan_run = portia.run(task0)
+</file>
+
+<file path="getting-started/2_tools_end_users_llms.py">
+task2 = (
+task3 = "Fetch the weather in London and email bob@portialabs.ai with the results."
+my_config = Config.from_default(storage_class=StorageClass.CLOUD)
+portia = Portia(
+# the authentication token will be stored for the `end_user_id` below.
+# Repeated runs of this script won't require re-authentication,
+plan = portia.plan(task2)
+⋮----
+plan_run = portia.run_plan(plan, end_user="its me, mario")
+</file>
+
+<file path="getting-started/3_mcp.py">
+task = "Read the docs.portialabs.ai website and tell me what they do"
+my_config = Config.from_default(storage_class=StorageClass.CLOUD)
+registry = McpToolRegistry.from_stdio_connection(
+portia = Portia(
+</file>
+
+<file path="getting-started/4_browser_use.py">
+task = (
+my_config = Config.from_default(storage_class=StorageClass.CLOUD)
+browser_tool = BrowserTool(
+portia = Portia(
+plan_run = portia.run(task)
+</file>
+
+<file path="getting-started/LICENSE">
+MIT License
+
+Copyright (c) 2025 Portia AI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="getting-started/pyproject.toml">
+[project]
+name = "portia-getting-started"
+version = "0.1.0"
+description = "Sample code to help you get started with some of the features of the Portia AI framework."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = ["portia-sdk-python[tools-browser-browserbase]>=0.6.2,<0.7.0"]
+</file>
+
+<file path="getting-started/README.md">
+# Portia SDK Getting Started Guide
+
+This directory contains example scripts demonstrating various capabilities of the Portia SDK.
+
+## Getting Started
+
+1. Set up your environment variables (copy `.env.example` to `.env` and add any necessary config values for running each script.)
+2. Run any of the examples using `uv run` as shown below
+
+For more information about the Portia SDK, visit the [Portia SDK documentation](https://docs.portialabs.ai).
+
+## Examples
+
+### 1. GitHub OAuth Integration
+
+[1_github_oauth.py](./1_github_oauth.py) - Demonstrates how to use Portia with GitHub OAuth authentication. This example shows how to star a GitHub repository and check Google Calendar availability to schedule meetings.
+
+```bash
+uv run 1_github_oauth.py
+```
+
+### 2. Tools & End Users
+
+[2_tools_end_users_llms.py](./2_tools_end_users_llms.py) - Shows how to use Portia with various tools for end users and LLMs. This example includes tasks like researching gold prices and fetching weather data to send via email.
+
+```bash
+uv run 2_tools_end_users_llms.py
+```
+
+### 3. MCP (Model Context Protocol)
+
+[3_mcp.py](./3_mcp.py) - Demonstrates how to use Portia with the Model Context Protocol. This example shows how to read website content using an MCP tool.
+
+```bash
+uv run 3_mcp.py
+```
+
+### 4. Browser Automation
+
+[4_browser_use.py](./4_browser_use.py) - Shows how to use Portia for browser automation. This example demonstrates finding LinkedIn connections using both local and Browserbase options.
+
+```bash
+uv run 4_browser_use.py
+```
+</file>
+
+<file path="grocery-manager-agent/.env.example">
+# Get one from the dashboard: https://app.portialabs.ai/dashboard/api-keys
+PORTIA_API_KEY=
+# Set this if using OpenAI: https://platform.openai.com/account/api-keys
+OPENAI_API_KEY=
+## Alternatively, comment out OPENAI_API_KEY and set this if using Anthropic:
+## Obtain a key from: https://console.anthropic.com/settings/keys
+# ANTHROPIC_API_KEY=
+
+
+# Local Chrome configuration:
+PORTIA_BROWSER_LOCAL_CHROME_EXEC=
+PORTIA_BROWSER_LOCAL_EXTRA_CHROMIUM_ARGS=
+
+# Sign up for a Browserbase account: https://www.browserbase.com/overview. 
+# Only necessary if you're running browser remotely.
+BROWSERBASE_API_KEY=
+BROWSERBASE_PROJECT_ID=
+</file>
+
+<file path="grocery-manager-agent/.gitignore">
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+# .python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# UV
+#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#uv.lock
+
+# poetry
+#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
+#poetry.lock
+
+# pdm
+#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+#pdm.lock
+#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
+#   in version control.
+#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
+.pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
+#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+#.idea/
+
+# Ruff stuff:
+.ruff_cache/
+
+# PyPI configuration file
+.pypirc
+</file>
+
+<file path="grocery-manager-agent/grocery_tool.py">
+class GroceryAlternativesToolSchema(BaseModel)
+⋮----
+options: str = Field(
+choice: str | None = Field(
+class GroceryAlternativesTool(Tool[Dict[str, str]])
+⋮----
+id: str = "alternatives"
+name: str = "Product Alternatives Tool"
+description: str = "Used to display alternatives to the human user and retrieve their preferred choice."
+args_schema: type[BaseModel] = GroceryAlternativesToolSchema
+output_schema: tuple[str, str] = (
+⋮----
+data = json.loads(options)
+products = data["grocery_items"]
+alternative = data["alternative"]
+⋮----
+options = []
+⋮----
+name = product.get("name", "")
+price = product.get("price", "")
+⋮----
+user_guidance = (
+clarification = MultipleChoiceClarification(
+</file>
+
+<file path="grocery-manager-agent/main.py">
+def get_user_preferences() -> Tuple[str, str]
+⋮----
+notes_website = "https://keep.google.com/"
+grocery_website = "https://groceries.morrisons.com"
+⋮----
+browser_tool = BrowserTool(infrastructure_option=BrowserInfrastructureOption.LOCAL)
+alternatives_tool = GroceryAlternativesTool()
+tool_registry = ToolRegistry([browser_tool, alternatives_tool])
+portia = Portia(
+⋮----
+notes_agent = NotesAgent(portia, notes_website)
+grocery_list = notes_agent.get_grocery_list()
+⋮----
+agent = ShoppingAgent(portia, grocery_website, grocery_list)
+</file>
+
+<file path="grocery-manager-agent/notes_agent.py">
+class NotesAgent
+⋮----
+def __init__(self, portia: Portia, notes_website: str)
+def get_grocery_list(self) -> List[str]
+⋮----
+task = f"""
+plan_run = self.portia.run(task)
+final_output = json.loads(plan_run.outputs.final_output.value)
+</file>
+
+<file path="grocery-manager-agent/pyproject.toml">
+[project]
+name = "portia-grocery-manager"
+version = "0.1.0"
+description = "Grocery agent to let you add items from shopping list to checkout basket."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "portia-sdk-python[tools-browser-browserbase]>=0.5.0,<0.6.0",
+    "python-dotenv>=1.1.1",
+]
+</file>
+
+<file path="grocery-manager-agent/README.md">
+# Portia Grocery Store Agent
+
+## Introduction
+The Portia Grocery Store Agent is an automated shopping assistant that helps you manage your grocery shopping. It can:
+- Extract your grocery list from Google Keep.
+- Search for items on Morrisons website.
+- Handle product alternatives when items aren't available
+- Add items to your cart
+- Provide a summary of your cart and total price
+
+Currently supported:
+- Notes App: Google Keep
+- Grocery Store: Morrisons
+
+## Prerequisites
+- Python 3.11
+- A Morrisons online account
+- A Google account with access to Google Keep
+- The Portia SDK installed
+- uv (Python package installer) - A fast, reliable Python package installer and resolver. Install it using:
+  ```bash
+  pip install uv
+  ```
+
+## Setup
+1. Clone this repository:
+   ```bash
+   git clone <repository-url>
+   cd portia-agent-examples/grocery-manager-agent
+   ```
+
+2. Configure your environment:
+   - Have your LLM API key and Portia API key in a .env file. Copy the `.env.example` file to `.env` and add your API keys to it.
+
+
+### Running the agent
+1. Start the agent:
+   ```bash
+   uv run main.py
+   ```
+
+2. Follow the prompts to:
+   - Select your notes app (currently Google Keep only)
+   - Select your grocery store (currently Morrisons only)
+   - Log in to your accounts when prompted
+   - Choose alternatives for products when needed
+   - Review your cart and complete checkout
+
+## Understanding the code
+The project is structured into several key components:
+
+### `main.py`
+The entry point of the application that:
+- Sets up the Portia instance with necessary tools
+- Handles user preferences
+- Orchestrates the shopping process
+
+### `notes_agent.py`
+Responsible for:
+- Connecting to your notes app
+- Extracting your grocery list
+- Parsing the list into a format the shopping agent can use
+
+### `shopping_agent.py`
+Manages the shopping process by:
+- Navigating the grocery store website
+- Searching for products
+- Handling login requirements
+- Managing the shopping cart
+- Processing each item in your list
+- Providing cart summaries
+
+### `grocery_tool.py`
+A custom Portia tool that:
+- Handles product alternatives
+- Manages user choices
+- Provides skip functionality for unwanted items
+
+You can also take a look at the Youtube Video [here](https://www.youtube.com/watch?v=YHkojGhYhvw&ab_channel=AtibhiAgrawal)
+which provides a walkthrough of the code along with a demo of the agent.
+
+### Key Features
+- Automated login handling
+- Smart product alternative suggestions
+- Skip option for unavailable items
+- Cart summary
+- Error handling and recovery
+- User-friendly CLI interface
+</file>
+
+<file path="grocery-manager-agent/shopping_agent.py">
+class ShoppingAgent
+⋮----
+def __init__(self, portia: Portia, grocery_website: str, grocery_list: List[str])
+def process_item(self, item: str) -> None
+⋮----
+task = f"""
+plan_run = self.portia.run(task)
+⋮----
+def process_list(self) -> None
+def notify_user(self)
+⋮----
+task = f"""Get cart summary from {self.grocery_website} and notify user of the details and to checkout"""
+</file>
+
+<file path="improving-planning-with-ull/.env.example">
+# Below are sample keys - you'll need to create your own.
+#
+# Create a Portia account and then get a key from: https://app.portialabs.ai/dashboard/api-keys
+export PORTIA_API_KEY='prt-LrrnPyt.0n0TaRe4Lk3y'
+
+# Create a Stripe account and then get a key from: https://dashboard.stripe.com/test/apikeys
+export STRIPE_TEST_API_KEY='sk_test_12ab23cdAMB54supernotarealkey'
+</file>
+
+<file path="improving-planning-with-ull/.gitignore">
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.aider*
+</file>
+
+<file path="improving-planning-with-ull/.python-version">
+3.13
+</file>
+
+<file path="improving-planning-with-ull/01_ull_vague_prompt_no_examples.py">
+vague_prompt = """
+portia_instance = init_portia()
+plan = portia_instance.plan(vague_prompt)
+</file>
+
+<file path="improving-planning-with-ull/02_ull_good_prompt_no_examples.py">
+good_prompt = """
+portia_instance = init_portia()
+plan = portia_instance.plan(good_prompt)
+</file>
+
+<file path="improving-planning-with-ull/03_ull_static_example_plans.py">
+plan1 = (
+vague_prompt = """
+portia_instance = init_portia()
+plan = portia_instance.plan(
+</file>
+
+<file path="improving-planning-with-ull/04_ull_create_example_plans.py">
+example_plans = []
+plan1 = (
+⋮----
+plan2 = (
+⋮----
+plan3 = (
+⋮----
+portia = init_portia()
+</file>
+
+<file path="improving-planning-with-ull/05_ull_vague_with_examples.py">
+vague_prompt = """
+portia_instance = init_portia()
+example_plans = portia_instance.storage.get_similar_plans(vague_prompt)
+⋮----
+plan = portia_instance.plan(
+</file>
+
+<file path="improving-planning-with-ull/common.py">
+def init_portia()
+⋮----
+config = Config.from_default(default_log_level="INFO")
+tools = (
+portia_instance = Portia(
+</file>
+
+<file path="improving-planning-with-ull/mock_tools.py">
+class RefundHumanApprovalInput(BaseModel)
+⋮----
+refund_request: str = Field(
+summary: str = Field(
+human_decision: Literal["APPROVED", "REJECTED"] | None = Field(
+class RefundHumanApprovalTool(Tool[str])
+⋮----
+id: str = "human_approval"
+name: str = "Human Approval"
+description: str = "A tool to request human approval in order to continue. Given a summary of the reasoning for the approval decision, the human will approve or reject the request."
+args_schema: Type[BaseModel] = RefundHumanApprovalInput
+output_schema: tuple[str, str] = (
+⋮----
+class RefundReviewerInput(BaseModel)
+⋮----
+refund_policy: str = Field(description="The refund policy for the product")
+class RefundReviewerTool(Tool[str])
+⋮----
+id: str = "refund_reviewer"
+name: str = "Refund Reviewer"
+description: str = (
+args_schema: Type[BaseModel] = RefundReviewerInput
+</file>
+
+<file path="improving-planning-with-ull/pyproject.toml">
+[project]
+name = "improving-planning-with-ull"
+version = "1.0.0"
+description = "A project consisting of example code, demonstrating Portia AI's user-led learning feature."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = ["dotenv>=0.9.9", "portia-sdk-python>=0.6.2,<0.7.0"]
+</file>
+
+<file path="improving-planning-with-ull/README.md">
+# Improving Planning with User-Led Learning (ULL)
+
+## Introduction
+
+This project demonstrates Portia's User-Led Learning (ULL) feature, which allows agents to learn from example plans and improve their planning capabilities over time. By providing examples of well-structured plans, you can guide the agent to create more effective plans for similar tasks in the future.
+
+The examples use a refund processing scenario to demonstrate how ULL can improve an agent's ability to handle complex workflows involving customer service, policy review, and payment processing.
+
+For more information on what the scripts do and what they demonstrate, you should read the accompanying blog post. (To be linked once published.)
+
+## Prerequisites
+
+- A Portia AI API key.
+- A Stripe test account and associated secret key.
+
+## Getting Started
+
+Each script can be run independently to see the progression of planning capabilities as more examples are provided.
+
+You'll need a `.env` file configuring a `PORTIA_API_KEY` and `STRIPE_TEST_API_KEY`.
+You can copy `.env.example` to `.env` and paste your keys into the file.
+(Or you can set these environment variables in whichever way you prefer.)
+The Stripe key must be a valid Stripe secret key, but can be a test key.
+It is only used to interact with the MCP tool service to discover Stripe's available tools.
+
+```sh
+export PORTIA_API_KEY='prt-LrrnPyt.0n0TaRe4Lk3y'
+export STRIPE_TEST_API_KEY='sk_test_12ab23cdAMB54supernotarealkey'
+```
+
+We recommend you use [`uv`](https://github.com/astral-sh/uv) to run these example scripts.
+UV will handle locating or installing the appropriate version of Python,
+creating a local virtualenv,
+and installation of all the project's requirements.
+
+If you have `uv` installed, you can run each script like this, without any other steps:
+
+```sh
+# Run the first example script:
+uv run 01_ull_vague_prompt_no_examples.py
+```
+
+The scripts are designed to be run in order,
+and most simply print out the plan that was generated by the sample code.
+The script `04_ull_create_example_plans.py` is different,
+in that it generates static plans and stores them in Portia's cloud storage.
+
+## Understanding the code
+
+This directory contains a series of scripts that progressively demonstrate how ULL works:
+
+1. [01_ull_vague_prompt_no_examples.py](./01_ull_vague_prompt_no_examples.py) - Shows how Portia handles a vague prompt without any example plans, resulting in potentially suboptimal planning.
+
+2. [02_ull_good_prompt_no_examples.py](./02_ull_good_prompt_no_examples.py) - Demonstrates how improving the prompt with more specific instructions can lead to better plans, even without examples.
+
+3. [03_ull_static_example_plans.py](./03_ull_static_example_plans.py) - Introduces the concept of providing a static example plan to guide Portia's planning process.
+
+4. [04_ull_create_example_plans.py](./04_ull_create_example_plans.py) - Shows how to create and store multiple example plans that can be used for future planning tasks.
+
+5. [05_ull_vague_with_examples.py](./05_ull_vague_with_examples.py) - Demonstrates how even with a vague prompt, Portia can create effective plans by leveraging previously stored example plans.
+</file>
+
+<file path="local-llm/sample_obsidian_vault/.obsidian/app.json">
+{}
+</file>
+
+<file path="local-llm/sample_obsidian_vault/.obsidian/appearance.json">
+{}
+</file>
+
+<file path="local-llm/sample_obsidian_vault/.obsidian/core-plugins.json">
+{
+  "file-explorer": true,
+  "global-search": true,
+  "switcher": true,
+  "graph": true,
+  "backlink": true,
+  "canvas": true,
+  "outgoing-link": true,
+  "tag-pane": true,
+  "properties": false,
+  "page-preview": true,
+  "daily-notes": true,
+  "templates": true,
+  "note-composer": true,
+  "command-palette": true,
+  "slash-command": false,
+  "editor-status": true,
+  "bookmarks": true,
+  "markdown-importer": false,
+  "zk-prefixer": false,
+  "random-note": false,
+  "outline": true,
+  "word-count": true,
+  "slides": false,
+  "audio-recorder": false,
+  "workspaces": false,
+  "file-recovery": true,
+  "publish": false,
+  "sync": true,
+  "webviewer": false
+}
+</file>
+
+<file path="local-llm/sample_obsidian_vault/.obsidian/graph.json">
+{
+  "collapse-filter": true,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": true,
+  "colorGroups": [],
+  "collapse-display": true,
+  "showArrow": false,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": true,
+  "centerStrength": 0.518713248970312,
+  "repelStrength": 10,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 1,
+  "close": true
+}
+</file>
+
+<file path="local-llm/sample_obsidian_vault/.obsidian/workspace.json">
+{
+  "main": {
+    "id": "7f6f55e05ce3a4f6",
+    "type": "split",
+    "children": [
+      {
+        "id": "41f5fdd6d5fbb862",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b01b23b9f042336b",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "visualizations/DDD.png"
+              },
+              "icon": "lucide-image",
+              "title": "DDD"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "b18d783a2f25e944",
+    "type": "split",
+    "children": [
+      {
+        "id": "6d33686cb0fb5426",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "dc181df8c9ed8c5c",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "27a9091c37b82e1f",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "2bf5153439627863",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "677ec35a62d14d0a",
+    "type": "split",
+    "children": [
+      {
+        "id": "dff0bff0a64c9097",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f43d84ab55fcb703",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "1d99123c1296c937",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "0f728fa5ef6bbe94",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "4d5c3797de6cf566",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "visualizations/Microservices.png",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Microservices"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false
+    }
+  },
+  "active": "dc181df8c9ed8c5c",
+  "lastOpenFiles": [
+    "visualizations/microservices.png",
+    "visualizations/DDD.png",
+    "visualizations/Microservices.png",
+    "visualizations/Pokemon.png",
+    "Welcome.md",
+    "DDD.md",
+    "Pokemon.md",
+    "Microservices.md",
+    "visualizations"
+  ]
+}
+</file>
+
+<file path="local-llm/sample_obsidian_vault/DDD.md">
+# Domain-Driven Design (DDD) Notes
+
+## 🧠 What is Domain-Driven Design?
+
+**Domain-Driven Design (DDD)** is a software design approach focused on modeling software based on the **business domain** it serves. It was introduced by **Eric Evans** in his book *Domain-Driven Design: Tackling Complexity in the Heart of Software* (2003).
+
+### Core Goals
+
+- Align software design with business goals and domain knowledge.
+- Manage complexity by focusing on core domain logic.
+- Encourage collaboration between domain experts and developers.
+
+---
+
+## 🗂️ Key Concepts
+
+### 📦 Domain
+The sphere of knowledge and activity around which the application logic revolves.
+
+### 📘 Ubiquitous Language
+A common language used by developers and domain experts within a **Bounded Context**, ensuring consistent communication and naming.
+
+### 📏 Bounded Context
+A boundary around a specific domain model, where terms, logic, and rules are consistent. Bounded contexts communicate via defined interfaces.
+
+### 📦 Entities
+- Objects with a unique identity and lifecycle.
+- Example: `User`, `Order`, `Invoice`
+
+### 📦 Value Objects
+- Immutable objects with no identity.
+- Represent descriptive aspects.
+- Example: `Money`, `DateRange`, `Address`
+
+### 📦 Aggregates
+- A cluster of domain objects treated as a single unit.
+- An **Aggregate Root** is the entry point to this cluster.
+- Enforces invariants and transactional consistency.
+
+### 🧩 Domain Events
+- Describe something that happened in the domain.
+- Help model side effects and enable eventual consistency.
+
+### 🔧 Repositories
+- Abstract storage for aggregates.
+- Provide methods like `save()`, `findById()`.
+
+### 🧠 Services
+- Contain domain logic that doesn’t naturally fit into an entity or value object.
+- Should be stateless.
+
+---
+
+## 🧱 Strategic Design
+
+### Bounded Context Mapping
+
+- Identify boundaries in the business and design independently evolving subsystems.
+- Define **relationships** between contexts (e.g., Customer-Supplier, Conformist, Anti-Corruption Layer).
+
+### Context Map Example:
+
+| Context A        | Context B         | Relationship Type      |
+|------------------|------------------|------------------------|
+| Customer Portal  | Billing Service  | Customer-Supplier      |
+| Inventory System | Fulfillment      | Conformist             |
+| Legacy CRM       | New CRM Adapter  | Anti-Corruption Layer  |
+
+---
+
+## ⚙️ Applying DDD in Practice
+
+### 1. Collaborate with domain experts
+Use **Event Storming** or **Domain Storytelling** to explore the business domain.
+
+### 2. Define a Ubiquitous Language
+Ensure everyone—developers and non-technical stakeholders—uses consistent terms.
+
+### 3. Design aggregates around transactional boundaries
+Keep aggregates small and cohesive to reduce contention and complexity.
+
+### 4. Implement bounded contexts in code
+Use clear module/package boundaries, separate databases or microservices when appropriate.
+
+---
+
+## 🧠 Benefits
+
+- Improves alignment between code and business goals
+- Helps manage complex domains
+- Promotes modular architecture and microservices
+
+---
+
+## 📚 Resources
+
+- *Domain-Driven Design* by Eric Evans
+- *Implementing Domain-Driven Design* by Vaughn Vernon
+- [DDD Community Portal](https://dddcommunity.org/)
+- [Domain Language](https://domainlanguage.com/)
+</file>
+
+<file path="local-llm/sample_obsidian_vault/Microservices.md">
+# The Microservices Mindset: Building Systems That Scale
+
+In the world of modern software development, the term **microservices** has become almost unavoidable. From tech meetups to architecture diagrams, it’s the go-to strategy for teams looking to scale their systems, improve deployment independence, and move faster. But what is a microservices architecture, really—and why has it become such a central part of contemporary software conversations?
+
+At its core, microservices is an architectural approach that structures an application as a collection of small, independent services. Each service encapsulates a specific business capability and communicates with others through well-defined APIs. Unlike traditional monolithic architectures, where all components of a system are packaged and deployed together, microservices promote separation of concerns, allowing each piece to evolve on its own timeline.
+
+One of the key advantages of microservices is autonomy. Because services are decoupled, teams can develop, deploy, and scale them independently. This leads to shorter release cycles, easier experimentation, and a more resilient system overall. If one service fails, the entire application doesn’t necessarily go down—unlike in a tightly coupled monolith where a single point of failure can have cascading effects.
+
+Of course, microservices come with trade-offs. Greater autonomy introduces greater complexity. Coordinating deployments, managing service-to-service communication, and maintaining consistency across a distributed system are non-trivial challenges. Concepts like eventual consistency, circuit breakers, service discovery, and observability become essential considerations, not afterthoughts.
+
+Another often overlooked challenge is organizational alignment. Adopting microservices successfully isn't just a technical decision—it requires teams to think differently about ownership and communication. Conway’s Law, which states that software systems tend to mirror the communication structures of the organizations that build them, comes into play here. To get microservices right, teams need to own their services end to end, from code to production, and collaborate effectively with other service owners.
+
+Tooling plays a huge role in making microservices work at scale. Containerization platforms like Docker and orchestration tools like Kubernetes have made it more feasible to manage dozens—or hundreds—of services in production. But technology is only half the story. Without a strong culture of DevOps, observability, and automation, even the best-designed microservices can become a tangled mess of dependencies and latency.
+
+In the end, microservices aren't a silver bullet. They're a design philosophy that offers powerful benefits when applied thoughtfully to the right problems. They work best in large, complex domains where the overhead of splitting responsibilities pays off over time. For smaller teams or simpler products, the cost of the additional complexity may not be justified.
+
+Before jumping into microservices, ask yourself what you're optimizing for. Is your team struggling with slow deployment cycles? Do different features change at different rates? Is your domain large and evolving? If the answer to these is yes, microservices may be the right fit. But always remember: architecture should be a tool in service of your goals—not a goal in itself.
+</file>
+
+<file path="local-llm/sample_obsidian_vault/Pokemon.md">
+# Pokémon Notes
+
+## 📚 Overview
+
+**Pokémon** (short for *Pocket Monsters*) is a multimedia franchise created by Nintendo, Game Freak, and Creatures. It began as a pair of video games released for the original Game Boy in 1996 and has grown into a massive franchise including games, anime, movies, trading cards, and merchandise.
+
+## 🎮 Core Game Mechanics
+
+- **Goal**: Become a Pokémon Champion by catching and training Pokémon to battle other Trainers.
+- **Core Series**: Mainline RPGs released in generational pairs (e.g., *Red & Blue*, *Sword & Shield*).
+- **Gameplay Loop**:
+  1. Catch Pokémon using Poké Balls.
+  2. Train them by battling wild Pokémon or Trainers.
+  3. Defeat Gym Leaders to earn badges.
+  4. Challenge the Pokémon League.
+
+## 🧬 Pokémon Basics
+
+- **Types**: Each Pokémon and move has a type (e.g., Fire, Water, Grass). Type matchups affect damage:
+  - Water > Fire
+  - Fire > Grass
+  - Grass > Water
+- **Stats**:
+  - HP (Health Points)
+  - Attack / Special Attack
+  - Defense / Special Defense
+  - Speed
+
+- **Abilities**: Passive traits that can influence battle.
+- **Natures**: Affect stat growth during leveling.
+
+## 📦 Game Features
+
+- **Trading**: Players can trade Pokémon with others.
+- **Breeding**: Create eggs to hatch Pokémon with inherited traits.
+- **Shiny Pokémon**: Rare color variants (~1 in 4,096 chance).
+- **EV/IV Training**:
+  - EVs (Effort Values): Gained through battling.
+  - IVs (Individual Values): Set when Pokémon is generated.
+
+## 🌍 Regions (Selected)
+
+- **Kanto** - Gen I (*Red/Blue/Yellow*)
+- **Johto** - Gen II (*Gold/Silver/Crystal*)
+- **Sinnoh** - Gen IV (*Diamond/Pearl/Platinum*)
+- **Galar** - Gen VIII (*Sword/Shield*)
+- **Paldea** - Gen IX (*Scarlet/Violet*)
+
+## 🎭 Notable Pokémon
+
+| Name      | Type(s)      | Notes                         |
+|-----------|--------------|-------------------------------|
+| Pikachu   | Electric     | Franchise mascot              |
+| Charizard | Fire/Flying  | Fan favorite, Gen I starter   |
+| Mewtwo    | Psychic      | Legendary, cloned from Mew    |
+| Lucario   | Fighting/Steel | Known for Aura abilities    |
+| Greninja  | Water/Dark   | Ash’s partner in the anime    |
+
+## 🧠 Fun Trivia
+
+- Pokémon was inspired by creator Satoshi Tajiri’s childhood interest in bug collecting.
+- The franchise has over **1,000** unique Pokémon as of Gen IX.
+- Pikachu's voice has remained consistent in the anime (Ikue Ōtani).
+- “Pokémon” is both singular and plural—no “Pokémons”!
+
+## 🔗 Resources
+
+- [Pokémon Official Website](https://www.pokemon.com/)
+- [Serebii.net](https://www.serebii.net/) – Comprehensive news and databases
+- [Bulbapedia](https://bulbapedia.bulbagarden.net/) – Pokémon encyclopedia
+</file>
+
+<file path="local-llm/sample_obsidian_vault/Welcome.md">
+This is your new *vault*.
+
+Make a note of something, [[create a link]], or try [the Importer](https://help.obsidian.md/Plugins/Importer)!
+
+When you're ready, delete this note and make the vault your own.
+</file>
+
+<file path="local-llm/tests/test_visualization.py">
+class TestVisualizationTool(unittest.TestCase)
+⋮----
+def setUp(self)
+def tearDown(self)
+def test_simple_concept_map(self)
+⋮----
+relationships = [
+result = self.visualization_tool.run(
+⋮----
+file_size = os.path.getsize(result)
+⋮----
+def test_coffee_concept_map(self)
+</file>
+
+<file path="local-llm/tools/visualization_tool.py">
+VISUALIZATION_AVAILABLE = True
+⋮----
+VISUALIZATION_AVAILABLE = False
+⋮----
+class VisualizationSchema(BaseModel)
+⋮----
+relationships: List[List[str]] = Field(
+title: str = Field(
+output_dir: str = Field(
+class VisualizationTool(Tool[str])
+⋮----
+id: str = "visualization_tool"
+name: str = "Visualization Tool"
+description: str = """
+args_schema: type[BaseModel] = VisualizationSchema
+output_schema: tuple[str, str] = ("str", "Path to the saved visualization image file")
+⋮----
+# Validate relationships format
+⋮----
+# Convert relationships to tuples
+formatted_relationships = [(rel[0], rel[1], rel[2]) for rel in relationships]
+# Extract concepts from relationships
+concepts = set()
+⋮----
+def _create_concept_map(self, concepts: List[str], relationships: List[Tuple[str, str, str]], title: str, output_dir: str) -> str
+⋮----
+# Create a directed graph
+G = nx.DiGraph()
+# Add nodes from concepts list
+⋮----
+# Add edges with relationship types as labels
+edge_labels = {}
+⋮----
+# Create the visualization with a larger figure size
+⋮----
+# Choose layout based on graph size
+⋮----
+pos = nx.circular_layout(G, scale=2.0)
+⋮----
+pos = nx.spring_layout(G, k=2.0, iterations=100, seed=42, scale=2.0)
+# Draw edges with visible arrows
+⋮----
+alpha=1.0,  # Full opacity
+arrowsize=20,  # Even larger arrows
+arrowstyle='-|>',  # Arrow style that extends beyond nodes
+node_size=2000,  # This is key - tells edge drawing the node size to avoid
+min_source_margin=15,  # Start edges outside the node
+min_target_margin=25   # End edges outside the node
+⋮----
+# Draw nodes
+⋮----
+node_size=2000,  # Smaller fixed size nodes
+⋮----
+# Draw node labels
+⋮----
+# Draw edge labels
+⋮----
+# Save the figure
+⋮----
+filename = f"{output_dir}/{title.replace(' ', '_')}.png"
+</file>
+
+<file path="local-llm/main.py">
+def create_plan_local(portia: Portia, note_name: str)
+⋮----
+plan = (
+⋮----
+def create_plan_remote(portia: Portia, note_name: str)
+⋮----
+query = f"""
+⋮----
+def main(argv=sys.argv[1:])
+⋮----
+argument_parser = argparse.ArgumentParser()
+⋮----
+args = argument_parser.parse_args(argv)
+config = Config.from_default(
+obsidian_mcp = McpToolRegistry.from_stdio_connection(
+tools = obsidian_mcp + ToolRegistry([VisualizationTool()])
+portia = Portia(
+plan = create_plan_local(portia, args.note_name)
+</file>
+
+<file path="local-llm/pyproject.toml">
+[project]
+name = "local-llm"
+version = "0.1.0"
+description = "A cool demo using Portia with local LLMs and Obsidian"
+authors = [{ name = "hello@portialabs.ai" }]
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "portia-sdk-python[ollama] (>=0.6.2,<0.7.0)",
+    "python-dotenv (>=1.0.0,<2.0.0)",
+    "pydantic (>=2.4.2,<3.0.0)",
+    "networkx>=3.4.2",
+    "matplotlib>=3.10.1",
+]
+</file>
+
+<file path="local-llm/README.md">
+# Local LLM Demo
+
+A demo using Portia with local LLMs and Obsidian app.
+
+## Overview
+
+This project demonstrates how to use the Portia framework with local Large Language Models (LLMs) and integrate with Obsidian for knowledge management. It specifically uses Ollama with the Qwen model as the local LLM.
+
+## Prerequisites
+
+- Python 3.11 or higher
+- UV (for Python and dependency management)
+- [Obsidian](https://obsidian.md/) installed locally.
+- [Ollama](https://ollama.ai/) installed locally (or any similar tool to deploy/run models locally)
+   - `ollama/qwen3:4b` model pulled in Ollama
+ - You'll need [npx](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) installed and available in your environment. (It's part of NodeJS, and is required for the Obsidian MCP server.)
+
+## Installation
+
+1. Clone this repository:
+   ```bash
+   git clone <repository-url>
+   cd local-llm
+   ```
+
+2. Install and set up Ollama:
+   ```bash
+   # Install Ollama from https://ollama.ai/
+   
+   # Pull the Qwen model (we're using the 4B version in this example)
+   ollama pull qwen3:4b 
+   ```
+
+3. Set up environment variables:
+   Create a `.env` file in the root directory with the following variables.
+   The following path to a sample Obsidian vault in this repo:
+   ```
+   # Obsidian Configuration
+   OBSIDIAN_VAULT_PATH=./sample_obsidian_vault
+   ```
+
+## Running the Demo
+
+To run the main script:
+
+```bash
+uv run main.py note_name
+```
+
+## Features
+
+- Integration with Ollama running the Qwen model locally
+- Obsidian vault processing and knowledge extraction for a note.
+- Visualization of the note's knowledge graph is then generated and saved to the Obsidian vault under `visualizations` folder.
+</file>
+
+<file path="outreach-agent/.env.example">
+OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
+PORTIA_API_KEY="YOUR_PORTIA_API_KEY"
+
+# Optional - if you want to use Browserbase for scalable browser automation
+BROWSERBASE_API_KEY="YOUR_BROWSERBASE_API_KEY"
+BROWSERBASE_PROJECT_ID="YOUR_BROWSERBASE_PROJECT_ID"
+</file>
+
+<file path="outreach-agent/agent.py">
+outreach_messages_doc_id = input("Please enter the ID of the outreach messages doc: ")
+outreach_criteria_doc_id = input("Please enter the ID of the outreach criteria doc: ")
+my_config = Config.from_default(storage_class=StorageClass.CLOUD)
+portia = Portia(
+def read_task_from_file(filepath: str) -> str
+plan_run = portia.run(
+def extract_linkedin_urls(text: str) -> list[str]
+⋮----
+pattern = r"(?:https?://)?\w*?\.?linkedin\.com/in/[a-zA-Z0-9_-]+/?"
+⋮----
+linkedin_urls = extract_linkedin_urls(plan_run.outputs.final_output.value)
+⋮----
+output = plan_run.outputs.final_output.value
+</file>
+
+<file path="outreach-agent/pyproject.toml">
+[project]
+name = "portia_outreach_agent"
+version = "0.1.0"
+description = "Outreach agent for Portia AI"
+authors = [{ name = "Portia AI", email = "hello@portialabs.ai" }]
+requires-python = "~=3.11"
+dependencies = [
+    "portia-sdk-python[tools-browser-local]>=0.6.2,<0.7",
+    "python-dotenv>=1.0.1,<2",
+]
+
+[tool.uv]
+package = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+</file>
+
+<file path="outreach-agent/README.md">
+# Outreach Agent
+
+## Introduction
+
+This example demonstrates how to use Portia AI to build an agent that does outreach on LinkedIn. Given a document with LinkedIn profile URLs, it finds the profiles, and assesses them according to a criteria document. Then, it sends a connection request to the user if they meet the criteria using a customizable message.
+
+## Prerequisites
+
+- A Google account and 2 Google docs (Outreach messages and Outreach criteria)
+- The Outreach messages doc ([example](https://docs.google.com/document/d/1OihNoU1SuvHxOSSXtZGN-k753hruGS9E6XeQK8bIU2I/edit?tab=t.0)) should contain any messages that you want the agent to parse and create connections for the LinkedIn profiles within it. 
+
+![Oureach messages sample doc](outreach_messages.png)
+
+- The Outreach criteria doc ([example](https://docs.google.com/document/d/16MwruStPOD29ySXZ1O1N59fLy6ja0v87_DX8dGJn_tc/edit?tab=t.0))should contain the criteria and the request message. Note, make sure that the request message will actually work with a LinkedIn connection request (the limit is 200 characters for free users)!
+
+![Outreach criteria sample doc](outreach_criteria.png)
+
+- A Portia AI API key: You can get one from [app.portialabs.ai](https://app.portialabs.ai) > API Keys.
+- An OpenAI API key (or your favorite LLM of choice)
+- Google Chrome on your laptop (it needs to be closed before the agent starts) or you can use Browserbase ((documentation)[https://docs.portialabs.ai/browser-tools#setting-up-the-browser-based-tools] for a scalable solution that works with end users.
+
+- We use poetry to manage dependencies. You can install it from [here](https://python-poetry.org/docs/#installation).
+
+## Setup
+
+1. Clone the repository and select this folder.
+2. Copy the `.env.example` file to `.env` and add your API keys to it.
+4. Install the dependencies by running `poetry install`.
+7. Run the `agent.py` file by running `poetry run python agent.py`.
+
+## Running the example
+
+The first time you run the agent, you will be prompted to authenticate with Google. Once this has been done once, Portia cloud will handle future authentications for you and so the plan should run without any clarifications.
+
+You will also be prompted to login to LinkedIn when the agent reaches that point if you are not already logged in.
+</file>
+
+<file path="outreach-agent/research_and_connect.txt">
+Read the criteria Google Document with ID '16MwruStPOD29ySXZ1O1N59fLy6ja0v87_DX8dGJn_tc'
+
+Based on the criteria doc, construct the data fields that you'll need to extract from the persons LinkedIn profile to appropriately assess them according to the criteria. This should be a brief list of the key data points required, at this point you are just collecting data and should not provide the criteria as well as the data you are researching to the tool.
+
+Go to {linked_in_profile_url} and return the data required for the criteria to be assessed. Do not attempt login unless you cannot access all the data in the profile.
+
+Categorise the linked in profile using the criteria document from the first step, and data retrieved in the second, as BEST, GOOD, OK or PASS.
+
+If the user is in category BEST, GOOD or OK: Please take the action of going to LinkedIn and if the user is not already connected to them, send them a connection request with the connection request text from the Google Document in the first step.
+</file>
+
+<file path="outreach-agent/retrieve_potential_connections.txt">
+You are a linkedIn outreach and research agent. You should undertake the following tasks:
+- Read the Google document with ID '1OihNoU1SuvHxOSSXtZGN-k753hruGS9E6XeQK8bIU2I'
+- Parse the document content and for any full linked in URLs, e.g www.linkedin.com/in/emma-burrows/ and output them in a comma separated list, e.g ["www.linkedin.com/in/emma-burrows/","www.linkedin.com/in/mounir-mouwad/"]
+</file>
+
+<file path="planning-poker/.env.example">
+PORTIA_API_KEY="
+OPENAI_API_KEY=""
+</file>
+
+<file path="planning-poker/.python-version">
+3.12
+</file>
+
+<file path="planning-poker/context.md">
+# Portia Agentic Framework: Context Overview
+
+Portia is a Python framework for formalized planning and execution of agentic LLM workflows. It is designed to support robust, inspectable, and interactive agentic systems, with a focus on explicit plans, stepwise execution, and user clarifications.
+
+## Core Concepts
+
+### 1. **Plan**
+
+- **Definition:**  
+  A `Plan` is a formal, structured representation of how to solve a user query. It consists of a sequence of `Step` objects, each representing a discrete action (often a tool call) to be performed by an agent.
+- **Key Fields:**
+  - `id`: Unique identifier for the plan.
+  - `plan_context`: Metadata about the plan, including the original query and available tools.
+  - `steps`: Ordered list of `Step` objects, each with its own inputs, outputs, and associated tool.
+  - `plan_inputs`: List of `PlanInput` objects, representing required external inputs (e.g., API keys, user parameters).
+  - `structured_output_schema`: (Optional) Pydantic schema for the expected output.
+- **Purpose:**  
+  Encapsulates the entire workflow for a query, making it inspectable, reusable, and modifiable. Plans can be generated dynamically (via LLMs) or constructed programmatically.
+
+### 2. **PlanRun**
+
+- **Definition:**  
+  A `PlanRun` is a concrete execution instance of a `Plan`. It tracks the current state, progress, and all intermediate/final outputs for a specific run.
+- **Key Fields:**
+  - `id`: Unique identifier for the run.
+  - `plan_id`: Reference to the associated `Plan`.
+  - `current_step_index`: Index of the step currently being executed.
+  - `state`: Enum (`PlanRunState`) indicating status (e.g., NOT_STARTED, IN_PROGRESS, NEED_CLARIFICATION, COMPLETE, FAILED).
+  - `outputs`: `PlanRunOutputs` object, storing step outputs, clarifications, and the final output.
+  - `plan_run_inputs`: Mapping of input names to values for this run.
+  - `end_user_id`: Identifier for the user this run is for.
+- **Purpose:**  
+  Provides a full, auditable record of a plan's execution, including all user interactions and clarifications. Enables pausing, resuming, and inspecting runs at any point.
+
+### 3. **Clarification**
+
+- **Definition:**  
+  A `Clarification` is a formal request for additional information or action from the user, raised when the agent cannot proceed (e.g., missing argument, authentication required, ambiguous choice).
+- **Types:**
+  - `InputClarification`: Requests a value for a missing argument.
+  - `ActionClarification`: Requests the user to perform an action (e.g., OAuth login), possibly requiring confirmation.
+  - `MultipleChoiceClarification`: Asks the user to select from options.
+  - `ValueConfirmationClarification`: Asks the user to confirm a value.
+  - `UserVerificationClarification`: Requests explicit user approval before proceeding (e.g., for sensitive tool calls).
+  - `CustomClarification`: Extensible for arbitrary user-defined needs.
+- **Key Fields:**
+  - `id`: Unique identifier.
+  - `plan_run_id`: The run this clarification is for.
+  - `category`: The type of clarification.
+  - `user_guidance`: Message to display to the user.
+  - `resolved`: Whether the clarification has been addressed.
+  - `response`: The user's response (if any).
+  - `step`: The step index this clarification is associated with.
+  - `source`: Where the clarification originated (e.g., tool, agent).
+- **Purpose:**  
+  Enables interactive, robust execution by pausing the run and requesting user input whenever the agent cannot proceed autonomously.
+
+---
+
+## The Agentic Workflow
+
+### 1. **Planning**
+
+- The user issues a query.
+- The `Portia` client (main entrypoint) uses a `PlanningAgent` (often LLM-backed) to generate a `Plan`:
+  - The plan specifies the sequence of steps, required inputs, and tools to use.
+  - Example plans and tool registries can be provided to guide planning.
+
+### 2. **PlanRun Creation**
+
+- A `PlanRun` is instantiated for the plan, with any required `plan_run_inputs` (e.g., user parameters, API keys).
+- The run is persisted to storage (memory, disk, or cloud).
+
+### 3. **Stepwise Execution**
+
+- The run proceeds step by step:
+  - For each step, the appropriate `ExecutionAgent` is invoked (e.g., `DefaultExecutionAgent`, `OneShotAgent`).
+  - The agent prepares the tool call, gathers inputs (from previous outputs or plan inputs), and executes the tool.
+  - Outputs are stored in the run's state.
+
+### 4. **Clarification Handling**
+
+- If a step cannot proceed (e.g., missing input, tool not ready, ambiguous choice), a `Clarification` is raised.
+- The run transitions to `NEED_CLARIFICATION` state.
+- A `ClarificationHandler` (e.g., CLI, web, custom) is invoked to present the clarification to the user and collect a response.
+- Once resolved, the run resumes from the point of interruption.
+
+### 5. **Hooks and Extensibility**
+
+- The `ExecutionHooks` system allows custom logic at key points:
+  - Before/after plan run, before/after each step, before/after tool calls, and for clarification handling.
+  - Hooks can raise clarifications, modify arguments, log, or enforce policies (e.g., require user verification before sensitive actions).
+
+### 6. **Completion and Output**
+
+- The run continues until all steps are executed or a terminal state (COMPLETE/FAILED) is reached.
+- The final output is available in the run's outputs.
+
+---
+
+## Additional Notes
+
+- **Storage:**  
+  Plans and runs are persisted via pluggable backends (memory, disk, cloud), enabling auditability and resumption.
+- **Tool Registry:**  
+  Tools are registered and described formally, enabling both LLMs and agents to reason about their capabilities and requirements.
+- **ReadOnlyPlan/PlanRun:**  
+  Read-only variants are passed to agents to prevent mutation and ensure reproducibility.
+- **Execution Agents:**  
+  Different agent types (default, one-shot, etc.) can be used for different execution strategies.
+- **User Experience:**  
+  Clarifications are surfaced to the user via handlers (CLI, web, etc.), and can be synchronous or asynchronous.
+
+---
+
+## Example Use Cases
+
+- **Multi-step workflows:**  
+  Fetch data, process it, and send a notification, with explicit steps and user clarifications for missing info.
+- **Interactive tool use:**  
+  Require user approval before sending emails or making purchases.
+- **Robust automation:**  
+  Pause and resume long-running or complex workflows, with full audit trails and user input where needed.
+
+---
+
+## References
+
+- See the `portia/portia.py` file for the main orchestration logic.
+- See `portia/plan.py` and `portia/plan_run.py` for the core data models.
+- See `portia/clarification.py` for clarification types and handling.
+- See `portia/execution_hooks.py` for extensibility points.
+- See the latest PRs for recent changes to input handling, clarification, and execution hooks.
+
+---
+
+This context should provide a solid foundation for understanding and building on top of Portia's agentic planning and execution system. If you need more detail on any specific object or flow, let me know!
+</file>
+
+<file path="planning-poker/main.py">
+personas = [
+⋮----
+codebase_context = f.read()
+tool_context = f"Conform to the nearest sizing value, rounding up to the nearest day. If the ticket is too large to estimate, return TLTE.\n\n{codebase_context}"
+estimate_tool = LLMTool(
+class Sizing(Enum)
+⋮----
+ONE_DAY = "1D"
+THREE_DAYS = "3D"
+FIVE_DAYS = "5D"
+SEVEN_DAYS = "7D"
+TEN_DAYS = "10D"
+TOO_LARGE_TO_ESTIMATE = "TLTE"
+class PlanningPokerEstimate(BaseModel)
+⋮----
+ticket_id: str = Field(..., description="The id of the ticket in Linear")
+ticket_title: str = Field(..., description="The title of the ticket")
+size: Sizing = Field(..., description="The size of the planning poker card")
+reason: str = Field(..., description="Discuss the reasoning behind the estimate, any issues or assumptions you made, and any other relevant information")
+class PlanningPokerEstimateList(BaseModel)
+⋮----
+estimates: list[PlanningPokerEstimate] = Field(..., description="The estimates")
+config = Config.from_default()
+portia = Portia(
+project = "Async Portia"
+query = f"""Get the tickets i'm working on from Linear with a limit of 3 on the tool call. Then filter specifically for those regarding the {project} project.
+estimates = portia.run(
+</file>
+
+<file path="planning-poker/mainethan.py">
+config = Config.from_default()
+portia = Portia(config=config)
+class Sizing(Enum)
+⋮----
+ONE_DAY = "1D"
+THREE_DAYS = "3D"
+FIVE_DAYS = "5D"
+SEVEN_DAYS = "7D"
+TEN_DAYS = "10D"
+TOO_LARGE_TO_ESTIMATE = "TLTE"
+class PlanningPokerEstimate(BaseModel)
+⋮----
+size: Sizing = Field(..., description="The size of the planning poker card")
+reason: str = Field(..., description="Discuss the reasoning behind the estimate, any issues or assumptions you made, and any other relevant information")
+class LinearTicket(BaseModel)
+⋮----
+title: str = Field(..., description="The title of the ticket")
+description: str = Field(..., description="The description of the ticket")
+ticket_id: str = Field(..., description="The id of the ticket")
+class LinearTicketList(BaseModel)
+⋮----
+tickets: list[LinearTicket] = Field(..., description="The tickets")
+project = "Async SDK"
+query = f"Get the tickets i'm working on from linear regarding the {project} project"
+plan = PlanBuilder(
+plan_run = portia.run_plan(plan)
+tickets = plan_run.outputs.final_output.value.tickets
+⋮----
+codebase_context = f.read()
+tool_context = f"Conform to the nearest sizing value, rounding up to the nearest day. If the ticket is too large to estimate, return TLTE.\n\n{codebase_context}"
+estimate_tool = LLMTool(
+personas = [
+⋮----
+estimates = []
+estimate_plan = PlanBuilder(
+⋮----
+context = f"""
+⋮----
+estimate = portia.run_plan(estimate_plan)
+</file>
+
+<file path="planning-poker/pyproject.toml">
+[project]
+name = "planning-poker"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "portia-sdk-python>=0.6.2,<0.7.0",
+    "pydantic>=2.11.7",
+    "python-dotenv>=1.1.1",
+]
+</file>
+
+<file path="planning-poker/README.md">
+# Planning Poker Agent
+
+## Introduction
+
+This example demonstrates how to use Portia AI to build an agent that performs planning poker estimation for Linear tickets. The agent retrieves tickets from Linear using Portia MCP cloud tools, analyses them from multiple developer perspectives (frontend, backend, and DevOps), and provides planning poker estimates with detailed reasoning.
+
+The agent uses different personas to simulate a team-based planning poker session, where each "developer" provides their estimate based on their area of expertise. This helps create more comprehensive and realistic estimates for development tasks.
+
+## Prerequisites
+
+- Python 3.12: You can download it from [python.org](https://www.python.org/downloads/) or install it using [pyenv](https://github.com/pyenv/pyenv)
+- A Portia AI API key: You can get one from [app.portialabs.ai](https://app.portialabs.ai) > API Keys.
+- Access to Linear with tickets to estimate
+- We use uv to manage dependencies. You can install it from [here](https://docs.astral.sh/uv/getting-started/installation/).
+
+## Setup
+
+1. Clone the repository and select this folder.
+2. Set your API keys as environment variables or create a `.env` file:
+   ```
+   PORTIA_API_KEY=your_portia_api_key_here
+   ```
+3. Install the dependencies by running `uv sync`.
+4. Create a `context.md` file with relevant codebase context to help with estimation.
+5. Run the agent by running `uv run main.py`.
+
+## Running the example
+
+The agent will:
+1. Retrieve tickets from Linear using the Portia MCP cloud tools
+2. Filter tickets based on the specified project (default: "Async SDK")
+3. For each ticket, estimate the size using three different developer personas:
+   - Frontend developer
+   - Backend developer  
+   - DevOps engineer
+4. Output the estimates with reasoning for each perspective
+
+The planning poker estimates use the following sizing scale:
+- 1D (1 Day)
+- 3D (3 Days)
+- 5D (5 Days)
+- 7D (7 Days)
+- 10D (10 Days)
+- TLTE (Too Large To Estimate)
+
+## Understanding the code
+
+The agent uses several key components:
+
+- **Linear Integration**: Uses Portia MCP cloud tools to fetch tickets from Linear
+- **Multi-Persona Estimation**: Simulates different developer perspectives for comprehensive estimates
+- **Structured Output**: Uses Pydantic models to ensure consistent estimation format
+- **Context-Aware Analysis**: Incorporates codebase context to provide more accurate estimates
+
+The estimation process follows a planning poker methodology where each "developer" provides their estimate based on their expertise, helping to identify potential challenges and assumptions from different technical perspectives.
+
+## Note
+This folder contains the main.py implementation which is more LLM-driven as well as mainethan.py which relies more on code.
+This is discussed in a dev.to article here https://dev.to/portia-ai/code-vs-llm-in-a-simple-planning-poker-agent-example-5dg0
+</file>
+
+<file path="refund-agent-mcp/.env.example">
+OPENAI_API_KEY=""
+PORTIA_API_KEY=""
+STRIPE_TEST_API_KEY=""
+</file>
+
+<file path="refund-agent-mcp/.gitignore">
+inbox.txt
+.portia
+</file>
+
+<file path="refund-agent-mcp/pyproject.toml">
+[project]
+name = "refund-agent-mcp"
+version = "0.1.0"
+description = "Refund Agent leveraging the Portia integration with Stripe"
+authors = [
+    { name = "Portia AI", email = "hello@portialabs.ai" }
+]
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+
+dependencies = [
+    "dotenv>=0.9.9,<0.10.0",
+    "portia-sdk-python[all]>=0.6.2,<0.7.0",
+    "stripe>=12.0.0,<13.0.0"
+]
+</file>
+
+<file path="refund-agent-mcp/README.md">
+# Portia SDK Refund Agent with MCP
+
+This agent analyzes a mock email `inbox.txt` sent by a customer against a mock refund policy `refund_policy.txt`. If it believes the refund should proceed, it will present it's rationale to the human operative (you!) for approval via the command line. Once approved, the refund agent will use the Stripe MCP server to retrieve the payment intent for the customer, and execute the refund. Finally, it will send the customer an email on behalf of the human operative summarizing what it has done.
+
+## Introduction
+
+This example demonstrates how to integrate tools from a Model Context Protocol (MCP) server into the Portia SDK using the Portia Tool Registry. Here we create an Agent that can handle customer service refund requests using a Stripe integration via their [MCP server](https://docs.stripe.com/building-with-llms#mcp-remote). The MCP server for the default example can be set up in 3-clicks on your personalized [Portia tool registry](https://app.portialabs.ai/dashboard/tool-registry).
+
+There is also an example under `refund_agent_with_local_mcp.py` that works similarly but uses the [local variety of Stripe MCP server](https://github.com/stripe/agent-toolkit/tree/main/modelcontextprotocol) through `npx`. There are instructions at the end for how to run this particular variant of the agent.
+
+Alongside MCP integrations, this example also demonstrates how [Clarifications](https://docs.portialabs.ai/understand-clarifications) can be used to keep humans in the loop, protecting against unwanted agent actions such as refunding customers payments incorrectly.
+
+You can read more about the tools provided by Portia Cloud in the [Portia Cloud documentation](https://docs.portialabs.ai/), or about the SDK in the [Portia SDK documentation](https://docs.portialabs.ai/SDK/portia).
+
+## Prerequisites
+
+Before running this agent, you'll need the following:
+
+- Python 3.11 (or greater): You can download it from [python.org](https://www.python.org/downloads/) or install it using [pyenv](https://github.com/pyenv/pyenv)
+- UV: We use uv to manage dependencies. You can install it from [here](https://docs.astral.sh/uv/concepts/projects/dependencies/).
+- A Portia AI API key: You can get one from [app.portialabs.ai](https://app.portialabs.ai) > API Keys.
+- An OpenAI API key: You can get one from [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+- A Stripe API key: We used a test-mode key which can be setup at [dashboard.stripe.com/test/apikeys](https://dashboard.stripe.com/test/apikeys). Note that you want the secret key, starting `sk-[test]`.
+- Stripe configured in your Portia tool registry: You can enable it by going to the [Portia tool registry](https://app.portialabs.ai/dashboard/tool-registry) in the dashboard, click on Stripe and enter your API key from the previous step to enable it.
+
+
+## Setup
+
+1. Clone the repository and select this folder.
+2. Copy the `.env.example` file to `.env` and add your API keys to it.
+3. Setup the Stripe payment to refund. You can use `uv run stripe_setup.py --email <test email>`, or follow these steps:
+    i. Create a Customer with an email address you have access to.
+    ii. Create a Product (this can be anything).
+    iii. Create a Payment. We did this by issuing an invoice to the Customer from step (i), and then paying the invoice with a Stripe [test card](https://docs.stripe.com/testing)
+
+
+## Usage
+
+`uv run refund_agent.py --email "<replace-with-stripe-customer-email>"` to run the Agent.
+
+You can play around with the refund email by setting the `--request` arg, e.g. `uv run refund_agent.py --email "<stripe-email>" --request "I dropped my Hoverboard in the flux-capacitor, can I get a refund?"`
+
+## Understanding the code
+
+### MCP integration
+
+Once set up in the Portia Tool Registry, the `DefaultToolRegistry` will automatically fetch Stripe (and any of the tools you have enabled in the registry). These are then provided to the planner to produce the final plan meeting the users query.
+
+### Refunds and Approval Clarifications
+
+We want the Agent to read the refund request, compare it with the company's refund policy (see `./refund_policy.txt`) and make a decision autonomously: this is handled in the `RefundReviewerTool` class.
+
+Because refunds involve sending out money, if the Agent thinks a refund _should_ be issued, we want to get a human to review the request along with the Agent's rationale. To achieve this, we can pause execution and wait from a [Clarification](https://docs.portialabs.ai/understand-clarifications) to get a human to review the request and the Agent's analysis. This implemented using [`ExecutionHooks`](https://docs.portialabs.ai/execution-hooks) by setting the `before_tool_call` property to invoke the method `clarify_on_tool_calls("mcp:stripe:create_refund")` and raise the required clarification. If the end user replied with the affirmative (types in 'y' in the CLI), the workflow proceeds otherwise it exits without creating the refund.
+
+In this particular case, we're using the CLI to elicit responses from the human, but you can build end to end applications that handle clarifications and communication back and forth with the user instead.
+
+### Authentication
+
+The agent recognises that in the last step of the flow, it needs to send an email using GMail. Because GMail uses OAuth, it authenticates you as the user before it starts executing so that it can complete as much of the flow autonomously as possible.
+
+
+## Local refund agent specific instructions
+
+### Local MCP pre-requisites
+
+- NPM: The Stripe MCP server requires `npx`. `npx` is part of `npm`, instructions to install `npm` can be found [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). If you run into errors on start-up, check that you can run `npx` commands in your command line. 
+
+### Usage
+
+`uv run refund_agent_with_local_mcp.py --email "<replace-with-stripe-customer-email>"` to run the Agent.
+
+### Understanding the code
+
+MCP tools are integrated as an extension to the Portia [ToolRegistry](https://docs.portialabs.ai/SDK/portia/tool_registry#toolregistry-objects) class.
+
+```python
+McpToolRegistry.from_stdio_connection(
+    server_name="stripe",
+    command="npx",
+    args=[
+        "-y",
+        "@stripe/mcp",
+        "--tools=all",
+        f"--api-key={os.environ['STRIPE_TEST_gAPI_KEY']}",
+    ],
+)
+```
+
+This spins up the MCP server using the [MCP python SDK](https://github.com/modelcontextprotocol/python-sdk), extracts the tools and automatically converts them to [Portia `Tool` objects](https://docs.portialabs.ai/intro-to-tools).
+</file>
+
+<file path="refund-agent-mcp/refund_agent_with_local_mcp.py">
+class RefundReviewerInput(BaseModel)
+⋮----
+refund_request: str = Field(
+refund_policy: str = Field(description="The refund policy for the product")
+class RefundReviewerTool(Tool[str])
+⋮----
+id: str = "refund_reviewer"
+name: str = "Refund Reviewer"
+description: str = (
+args_schema: Type[BaseModel] = RefundReviewerInput
+output_schema: tuple[str, str] = (
+⋮----
+llm = context.config.get_default_model()
+messages = [
+response = llm.get_response(messages)
+llm_decision = response.content.split("\n")[-1].strip()
+⋮----
+def main(customer_email: str)
+⋮----
+config = Config.from_default(
+tools = (
+portia = Portia(
+plan = portia.plan(
+⋮----
+parser = argparse.ArgumentParser()
+⋮----
+args = parser.parse_args()
+</file>
+
+<file path="refund-agent-mcp/refund_agent.py">
+class RefundReviewerInput(BaseModel)
+⋮----
+refund_request: str = Field(
+refund_policy: str = Field(description="The refund policy for the product")
+class RefundReviewerTool(Tool[str])
+⋮----
+id: str = "refund_reviewer"
+name: str = "Refund Reviewer"
+description: str = (
+args_schema: Type[BaseModel] = RefundReviewerInput
+output_schema: tuple[str, str] = (
+⋮----
+llm = context.config.get_default_model()
+messages = [
+response = llm.get_response(messages)
+llm_decision = response.content.split("\n")[-1].strip()
+⋮----
+def main(customer_email: str)
+⋮----
+config = Config.from_default(default_log_level="INFO")
+tools = DefaultToolRegistry(
+⋮----
+portia = Portia(
+plan = portia.plan(
+⋮----
+parser = argparse.ArgumentParser()
+⋮----
+args = parser.parse_args()
+</file>
+
+<file path="refund-agent-mcp/refund_policy.txt">
+**Refund Policy for Hoverfly PLC**
+
+At Hoverfly PLC, we are proud to offer the world’s first gravity-defying hoverboards. We are committed to ensuring your satisfaction, and we have established this Refund Policy to clarify the conditions under which refunds are granted. Please read this policy carefully before initiating a refund request.
+
+---
+
+### 1. Eligibility for Refunds
+
+- **Time Frame:** Refund requests must be submitted within **30 days** from the date of purchase.
+- **Condition of Product:** Refunds are processed only if the hoverboard is returned in an **as-new condition**. This means:
+  - The product is unused and undamaged.
+  - It is returned in its original packaging with all accessories, manuals, and warranty information intact.
+  - There are no signs of wear, modification, or improper use.
+- **Defective Products:** If the product proves to be defective within the Refund Time Frame, assuming the the Condition of the Product is as described, it can be refunded.
+- **Exceptions:** Custom orders, personalized items, or products marked as non-refundable at the time of purchase are not eligible for refunds, unless the item is defective upon arrival.
+
+---
+
+### 2. Initiating a Refund Request
+
+- **Contact Us:** To begin the refund process, please contact our Customer Service team at [insert contact email/phone]. Include your order number, a description of the issue, and (if applicable) photographs showing the product’s condition.
+- **Return Authorization:** Once your request is received, our team will verify the eligibility of your refund. If approved, you will receive a Return Authorization Number (RAN) along with detailed return instructions.
+
+---
+
+### 3. Return Shipping
+
+- **Customer Responsibility:** Unless the product is defective or not as described, the customer is responsible for the return shipping costs.
+- **Packaging:** Please ensure the hoverboard is securely packaged to prevent damage during transit. We recommend using a trackable shipping service or purchasing shipping insurance.
+
+---
+
+### 4. Inspection and Approval
+
+- **Product Inspection:** Upon receipt of your returned hoverboard, our team will inspect the product to confirm it meets the “as-new” criteria.
+- **Approval:** If the product passes inspection, we will proceed with processing your refund.
+- **Denial:** If the hoverboard does not meet the required condition, we reserve the right to deny the refund request and return the product to you.
+
+---
+
+### 5. Refund Processing
+
+- **Method of Refund:** Approved refunds will be issued using the original method of payment.
+- **Processing Time:** Please allow 7–10 business days for the refund to be credited to your account after approval.
+- **Deductions:** Any initial shipping or handling fees may be deducted from your refund unless the return is due to a defect or an error on our part.
+
+---
+
+### 6. Exchanges and Store Credit
+
+- **Exchanges:** If you prefer to exchange your hoverboard for a different model or product, please contact our Customer Service team to discuss available options.
+- **Store Credit:** In some cases, we may offer store credit instead of a cash refund. This will be communicated to you on a case-by-case basis.
+
+---
+
+### 7. Policy Updates
+
+- **Modifications:** Hoverfly PLC reserves the right to modify or update this Refund Policy at any time. Any changes will be posted on our website with the new effective date.
+- **Review:** We encourage you to review this policy periodically to stay informed of any updates.
+
+---
+
+### 8. Contact Information
+
+If you have any questions or need further assistance regarding our refund policy, please contact our Customer Service team at [insert contact email/phone].
+
+Thank you for choosing Hoverfly PLC. We are dedicated to providing innovative products and exceptional service, and we appreciate your business.
+</file>
+
+<file path="refund-agent-mcp/stripe_setup.py">
+def setup_stripe_test_environment(customer_email)
+⋮----
+payment_method = stripe.PaymentMethod.retrieve("pm_card_visa")
+customers = stripe.Customer.list(email=customer_email)
+⋮----
+customer = customers.data[0]
+payment_method = stripe.Customer.list_payment_methods(customer.id).data[0]
+⋮----
+customer = stripe.Customer.create(
+⋮----
+product = stripe.Product.create(
+⋮----
+price = stripe.Price.create(
+⋮----
+invoice = stripe.Invoice.create(
+⋮----
+paid_invoice = stripe.Invoice.pay(
+⋮----
+parser = argparse.ArgumentParser(description="Set up a Stripe test environment")
+⋮----
+args = parser.parse_args()
+result = setup_stripe_test_environment(args.email)
+</file>
+
+<file path="refund-agent-mcp/test.sh">
+set -e
+logfile="log_$(date +%Y%m%d_%H%M%S).txt"
+echo "Setting up Stripe user and payment"
+uv run stripe_setup.py --email test@portialabs.ai >> $logfile 2>&1
+echo "Running success case - AI should refund..."
+yes | uv run refund_agent.py --email test@portialabs.ai >> $logfile 2>&1
+echo "Running error case - AI should not refund, should exit normally with no refund..."
+uv run refund_agent.py --email test@portialabs.ai --request "I sat on my hoverboard and it broke. I want a refund." >> $logfile 2>&1
+echo "Running error case - Human rejects refund, should fail with error..."
+yes N | uv run refund_agent.py --email test@portialabs.ai >> $logfile 2>&1
+echo "Done"
+</file>
+
+<file path="simple-planning-agent/.env.example">
+# Or select your favourite LLM of choice
+GOOGLE_API_KEY="Your API key here"
+</file>
+
+<file path="simple-planning-agent/main.py">
+task = """Find a city in the Northern Hemisphere and output the weather in that city right now."""
+portia = Portia(config=Config.from_default(), tools=example_tool_registry)
+plan = portia.plan(task)
+</file>
+
+<file path="simple-planning-agent/pyproject.toml">
+[project]
+name = "simple-planning-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+    "portia-sdk-python[google,mistralai,ollama] (>=0.6.2,<0.7.0)",
+]
+</file>
+
+<file path="simple-planning-agent/README.md">
+# Portia simplest planning example
+
+## Introduction
+The purpose of this agent is just to check that you've got Portia installed correctly with minimal API key requirements.
+
+## Prerequisites
+
+Before running this agent, you'll need the following:
+
+- Python 3.11 (or greater): You can download it from [python.org](https://www.python.org/downloads/) or install it using [pyenv](https://github.com/pyenv/pyenv)
+- An LLM API key. We <a href="https://docs.portialabs.ai/manage-config#api-keys">support</a> all of the major LLMs. Set your API key in the .env file using e.g OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY or others.
+
+## Setup
+
+1. Clone the repository and select this folder.
+2. Copy the `.env.example` file to `.env` and add your API keys to it.
+3. Run the example by doing `uv run main.py`
+</file>
+
+<file path=".gitignore">
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+# .python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# UV
+#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#uv.lock
+
+# poetry
+#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
+#poetry.lock
+
+# pdm
+#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+#pdm.lock
+#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
+#   in version control.
+#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
+.pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+**/.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
+#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+#.idea/
+
+# PyPI configuration file
+.pypirc
+
+# Podcastfy
+ai-research-agent/data/
+
+.DS_Store
+
+*.portia
+</file>
+
+<file path="CODE_OF_CONDUCT.md">
+# Contributor Covenant Code of Conduct
+
+## Our Pledge
+
+In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to make participation in our project and our community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+
+## Our Standards
+
+Examples of behavior that contributes to creating a positive environment include:
+
+* Using welcoming and inclusive language
+* Being respectful of differing viewpoints and experiences
+* Gracefully accepting constructive criticism
+* Focusing on what is best for the community
+* Showing empathy towards other community members
+
+Examples of unacceptable behavior by participants include:
+
+* The use of sexualized language or imagery and unwelcome sexual attention or advances
+* Trolling, insulting/derogatory comments, and personal or political attacks
+* Public or private harassment
+* Publishing others' private information, such as a physical or electronic address, without explicit permission
+* Other conduct which could reasonably be considered inappropriate in a professional setting
+
+## Our Responsibilities
+
+Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to any instances of unacceptable behavior.
+
+Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct, or to ban temporarily or permanently any contributor for other behaviors that they deem inappropriate, threatening, offensive, or harmful.
+
+## Scope
+
+This Code of Conduct applies within all project spaces, and it also applies when an individual is representing the project or its community in public spaces.
+Examples of representing a project or community include using an official project e-mail address, posting via an official social media account, or acting as an appointed representative at an online or offline event. Representation of a project may be further defined and clarified by project maintainers.
+
+## Enforcement
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team directly on complaints@portialabs.ai. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. 
+Further details of specific enforcement policies may be posted separately.
+
+Project maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions as determined by other members of the project's leadership.
+
+## Attribution
+
+This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 1.4, available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.html
+
+[homepage]: https://www.contributor-covenant.org
+
+For answers to common questions about this code of conduct, see https://www.contributor-covenant.org/faq
+</file>
+
+<file path="CONTRIBUTING.md">
+# Contributing to Portia SDK 🏗️
+
+Thank you for your interest in contributing to Portia! We welcome contributions that improve the library and help us build a great experience for the community.
+
+## What to contribute
+* **Documentation** Tutorials, how-to guides and revisions to our existing docs go a long way in making our repo easier to setup and use
+* **Examples** Show our community what you can do with our SDK. We particularly encourage end-to-end, real-world applications
+* **Bug reports** Please include a detailed method to reproduce any bugs you spot. We would be grateful if you give the [Issue Tracker](https://github.com/portiaAI/portia-sdk-python/issues) a quick skim first to avoid duplicates 🙌
+* **Bug fixes** Those are our favourites! Please avoid breaking changes. The next section has some helpful tips for that.
+* **Feedback** Help us be better. Come chat to us on [Discord](https://discord.gg/DvAJz9ffaR) about your experience using the SDK 🫶
+
+⚠️ **A note on new features** If you have something in mind, please give us a shout on our Discord channel. Features like new core abstractions, changes to infra or to dependencies will require careful consideration before we can move forward with them.
+
+## How to contribute
+
+1. **Fork the Repository**: Start by forking the repository and cloning it locally.
+2. **Create a Branch**: Create a branch for your feature or bug fix. Use a descriptive name for your branch (e.g., `fix-typo`, `add-feature-x`).
+3. **Install the dependencies** We use Poetry to manage dependencies. Run ``poetry install``
+4. **Make Your Changes**: Implement your changes in small, focused commits. Be sure to follow our linting rules and style guide.
+5. **Run Tests**: If your changes affect functionality, please test thoroughly 🌡️ Details on how run tests are in the **Tests** section below.
+6. **Lint Your Code**: We use [ruff](https://github.com/charliermarsh/ruff) for linting. Please ensure your code passes all linting checks. We prefer per-line disables for rules rather than global ignores, and please leave comments explaining why you disable any rules.
+7. **Open a Pull Request**: Once you're happy with your changes, open a pull request. Ensure that your PR description clearly explains the changes and the problem it addresses. The **Release** section below has some useful tips on this process.
+8. **Code Review**: Your PR will be reviewed by the maintainers. They may suggest improvements or request changes. We will do our best to review your PRs promptly but we're still a tiny team with limited resource. Please bear with us 🙏
+10. **Merge Your PR**: Once approved, the author of the PR can merge the changes. 🚀
+
+## Linting
+
+We lint our code using [Ruff](https://github.com/astral-sh/ruff). We also have [pre-commit](https://pre-commit.com/) setup to allow running this easily locally.
+
+## Tests
+
+We write two types of tests:
+- Unit tests should mock out the LLM providers, and aim to give quick feedback. They should mock out LLM providers.
+- Integration tests actually call LLM providers, are much slower but test the system works fully.
+
+To run tests:
+- Run all tests with `poetry run pytest`.
+- Run unit tests with `poetry run pytest tests/unit`.
+- Run integration tests with `poetry run pytest tests/integration`.
+
+We utilize [pytest-parallel](https://pypi.org/project/pytest-parallel/) to execute tests in parallel. You can add the `--workers=4` argument to the commands above to run in parallel. If you run into issues running this try setting `export NO_PROXY=true` first.
+
+## Release
+
+Releases are controlled via Github Actions and the version field of the `pyproject.toml`. To release:
+
+1. Create a PR that updates the version field in the `pyproject.toml`.
+2. Merge the PR to main.
+3. Github Actions will create a new tag and push the new version to PyPi.
+
+## Contributor License Agreement (CLA)
+
+By submitting a pull request, you agree to sign our Contributor License Agreement (CLA), which ensures that contributions can be included in the project under the terms of our current [license](https://github.com/portiaAI/portia-sdk-python/edit/main/CONTRIBUTING.md#:~:text=CONTRIBUTING.md-,LICENSE,-Logo_Portia_Stacked_Black.png). We will ask you to sign this CLA when submitting your first contribution.
+
+## Thank you
+
+Thank you for contributing to Portia!
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2025 Portia AI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="README.md">
+# Portia AI Examples
+
+This repo contains example code demonstrating how to use Portia AI SDK and the Portia cloud tool library.
+
+Portia AI is an open source developer framework for stateful, authenticated agentic workflows.
+If you haven't checked it out already, check out our [SDK repo](https://github.com/portiaAI/portia-sdk-python) and give the SDK repo a ⭐!
+
+## [Getting Started with Portia](https://github.com/portiaAI/portia-agent-examples/tree/main/getting-started/)
+
+An introduction to the Portia SDK that walks you through the basics of creating an agent, defining tasks, and executing plans.
+This project demonstrates fundamental concepts like:
+
+- GitHub OAuth integration for repository interactions
+- Using tools with end user context.
+- Model Context Protocol (MCP) integration
+- Browser automation for web interactions
+
+Perfect for newcomers to understand the core concepts of Portia before diving into more complex examples.
+
+
+## [Get Started with Google Tools](https://github.com/portiaAI/portia-agent-examples/tree/main/get-started-google-tools/)
+
+Demonstrates a number of key features of the [Portia SDK](https://github.com/portiaAI/portia-sdk-python) including explicit planning, clarification and authentication. You can read more about the SDK and these concepts in the [Portia SDK documentation](https://docs.portialabs.ai/SDK/portia).
+
+## [AI Research Agent](https://github.com/portiaAI/portia-agent-examples/tree/main/ai-research-agent/)
+
+How to use Portia AI to build an agent that can receive emails about a topic, summarise them to slack and then create a short (2-3 mins) podcast from them. It utilises the [Gmail tools](https://docs.portialabs.ai/gmail-tools) and [Slack tools](https://docs.portialabs.ai/portia-tools/slack/) provided by Portia Cloud to read emails about 'AI' and post the summary to slack, as well as creating a new local [Podcastfy](https://github.com/souzatharsis/podcastfy/tree/main) for podcast creation.
+
+## [Portia SDK Discord Bot](https://github.com/portiaAI/portia-agent-examples/tree/main/discord-knowledge-bot/)
+
+Retrieve Github issues alongside a locally-implemented RAG tool to load and retrieve information from the Portia SDK documentation. For the vector database for our RAG tool, we use [Weaviate](https://weaviate.io/), which is an awesome AI-native vector database - see their quickstart guide [here](https://weaviate.io/developers/weaviate/quickstart).
+
+
+## [Portia SDK Refund Agent with MCP](https://github.com/portiaAI/portia-agent-examples/tree/main/refund-agent-mcp/)
+
+This example demonstrates how to integrate tools from a Model Context Protocol (MCP) server into the Portia SDK. Here we create an Agent that can handle customer service refund requests using a Stripe integration via their [MCP server](https://github.com/stripe/agent-toolkit/tree/main/modelcontextprotocol).
+
+Alongside MCP integrations, this example also demonstrates how [Clarifications](https://docs.portialabs.ai/understand-clarifications) can be used to keep humans in the loop, protecting against unwanted agent actions such as refunding customers payments incorrectly.
+
+## [Improving Planning with User-Led Learning](https://github.com/portiaAI/portia-agent-examples/tree/main/improving-planning-with-ull/)
+
+This project demonstrates Portia's User-Led Learning (ULL) feature, which allows agents to learn from example plans and improve their planning capabilities over time. Through a series of progressive examples, it shows how providing plan examples can guide the agent to create more effective plans for similar tasks, even when given vague instructions.
+
+## [Local LLM with Obsidian](https://github.com/portiaAI/portia-agent-examples/tree/main/local-llm/)
+
+This project demonstrates how to use Portia with local LLMs and the Obsidian app. It uses the [Obsidian MCP server](https://github.com/StevenStavrakis/obsidian-mcp) to interact with the Obsidian app, and local LLM (default to [qwen3:4b](https://ollama.com/models/qwen3:4b)).
+</file>
+
+</files>
