@@ -6,8 +6,8 @@ import sys
 import os
 
 # Add environment variables for testing
-os.environ.setdefault('PORTIA_CONFIG__OPENAI_API_KEY', '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')
-os.environ.setdefault('PORTIA_CONFIG__PORTIA_API_KEY', 'prt-Lqh8JxPh.5f1Z3iRipZ6xgsGPCaNgdbPj0DuVN5Ar')
+os.environ.setdefault('PORTIA_CONFIG__OPENAI_API_KEY', 'your-openai-api-key-here')
+os.environ.setdefault('PORTIA_CONFIG__PORTIA_API_KEY', 'your-portia-api-key-here')
 os.environ.setdefault('PORTIA_CONFIG__DEFAULT_MODEL', 'gpt-5-mini')
 os.environ.setdefault('PORTIA_CONFIG__OPENAI_MODEL', 'gpt-5-mini')
 
