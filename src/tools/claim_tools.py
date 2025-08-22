@@ -1,4 +1,4 @@
-from portia.tool import Tool, ToolRunContext
+from portia import Tool, ToolRunContext
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 import json
@@ -11,13 +11,13 @@ logger = logging.getLogger(__name__)
 
 class ClaimInfo(BaseModel):
     """Claim information model"""
-    claim_id: str
-    policy_number: str
+    claim_id: Optional[str] = Field(default="unknown")
+    policy_number: Optional[str] = Field(default="unknown")
     claim_type: str
-    incident_date: str
-    reported_date: str
-    estimated_amount: float
-    description: str
+    incident_date: Optional[str] = Field(default="unknown")
+    reported_date: Optional[str] = Field(default="unknown")
+    estimated_amount: Optional[float] = Field(default=0.0)
+    description: Optional[str] = Field(default="")
     supporting_documents: List[str] = Field(default_factory=list)
     customer_statement: str = ""
 
@@ -55,7 +55,17 @@ class ClaimValidationTool(Tool):
         
         # Convert dict inputs to models for easier processing
         if isinstance(claim_info, dict):
-            claim = ClaimInfo(**claim_info)
+            # Handle incomplete claim data by filling missing fields with defaults
+            processed_claim_info = {
+                'claim_id': claim_info.get('claim_id', 'unknown'),
+                'policy_number': claim_info.get('policy_number', 'unknown'),
+                'claim_type': claim_info.get('claim_type', 'unknown'),
+                'incident_date': claim_info.get('incident_date', 'unknown'),
+                'reported_date': claim_info.get('reported_date', 'unknown'),
+                'estimated_amount': claim_info.get('estimated_amount', claim_info.get('claim_amount', 0.0)),
+                'description': claim_info.get('description', f"{claim_info.get('claim_type', 'Unknown')} claim for ${claim_info.get('claim_amount', 0)}.")
+            }
+            claim = ClaimInfo(**processed_claim_info)
         else:
             claim = claim_info
             

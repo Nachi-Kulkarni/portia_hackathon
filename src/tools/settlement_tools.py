@@ -1,4 +1,4 @@
-from portia.tool import Tool, ToolRunContext
+from portia import Tool, ToolRunContext
 from pydantic import BaseModel, Field
 from typing import Dict, Optional
 import logging
@@ -37,8 +37,8 @@ class SettlementOfferTool(Tool):
         )
     
     def run(self, ctx: ToolRunContext, claim_amount: float, policy_coverage: float, 
-            damage_assessment: float, emotional_context: str = "neutral", 
-            stress_level: float = 0.5) -> SettlementOfferResult:
+            damage_assessment: float, emotional_context: Optional[str] = "neutral", 
+            stress_level: Optional[float] = 0.5) -> SettlementOfferResult:
         """Generate a settlement offer"""
         
         try:

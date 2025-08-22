@@ -50,9 +50,6 @@ class BaseInsuranceAgent:
         from src.tools.claim_tools import ClaimValidationTool  
         from src.tools.compliance_tools import ComplianceCheckTool
         
-        # Start with empty registry for base implementation
-        tools = ToolRegistry()
-        
         # Add insurance-specific tools
         custom_tools = [
             PolicyLookupTool(),
@@ -60,8 +57,8 @@ class BaseInsuranceAgent:
             ComplianceCheckTool()
         ]
         
-        for tool in custom_tools:
-            tools = tools + ToolRegistry([tool])
+        # Create registry with all tools at once
+        tools = ToolRegistry(custom_tools)
         
         return tools
     
