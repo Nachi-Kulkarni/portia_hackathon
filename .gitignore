@@ -1,1 +1,17 @@
 config/.env
+.env
+.venv/
+.python-version
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+*.log
+*.wav
+repomix-output*.xml
+audit_trail_*.log
+test_claim_recording.wav

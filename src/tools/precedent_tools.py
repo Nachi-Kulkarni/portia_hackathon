@@ -1,4 +1,4 @@
-from portia.tool import Tool, ToolRunContext
+from portia import Tool, ToolRunContext
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 import json
@@ -30,12 +30,26 @@ class SettlementRecommendation(BaseModel):
     risk_factors: List[str]
     justification: str
 
+class PrecedentAnalysisArgs(BaseModel):
+    """Arguments for precedent analysis"""
+    claim_type: str = Field(description="The type of claim")
+    claim_amount: float = Field(description="The claim amount")
+    case_complexity: str = Field(default="moderate", description="The complexity of the case")
+
 class PrecedentAnalysisTool(Tool):
     """Analyze precedent cases to recommend settlement amounts"""
     
     def __init__(self):
-        super().__init__()
-        self.mock_data_path = os.getenv("MOCK_POLICY_DB_PATH", "./src/data/mock_policies.json")
+        super().__init__(
+            id="precedent_analysis",
+            name="Precedent Analysis",
+            description="Analyze precedent cases to recommend settlement amounts",
+            args_schema=PrecedentAnalysisArgs,
+            output_schema=("json", "Settlement recommendation based on precedents"),
+            structured_output_schema=SettlementRecommendation
+        )
+        # Store the mock data path in a private variable
+        self._mock_data_path = os.getenv("MOCK_POLICY_DB_PATH", "./src/data/mock_policies.json")
     
     def run(self, ctx: ToolRunContext, claim_type: str, claim_amount: float, case_complexity: str = "moderate") -> SettlementRecommendation:
         """Analyze precedents and recommend settlement"""
@@ -79,7 +93,7 @@ class PrecedentAnalysisTool(Tool):
         """Load similar precedent cases"""
         # Mock implementation - in production would use ML similarity matching
         try:
-            with open(self.mock_data_path, 'r') as f:
+            with open(self._mock_data_path, 'r') as f:
                 data = json.load(f)
             
             precedents = []

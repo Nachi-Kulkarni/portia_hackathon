@@ -15,7 +15,24 @@ class BaseInsuranceAgent:
     
     def __init__(self, agent_name: str = "insurance_agent"):
         self.agent_name = agent_name
-        self.config = Config.from_default()
+        
+        # Use explicit configuration to avoid issues with environment variable loading
+        portia_api_key = os.getenv('PORTIA_CONFIG__PORTIA_API_KEY')
+        openai_api_key = os.getenv('PORTIA_CONFIG__OPENAI_API_KEY')
+        default_model = os.getenv('PORTIA_CONFIG__DEFAULT_MODEL', 'gpt-4.1')
+        
+        if portia_api_key and openai_api_key:
+            # Create config with explicit parameters
+            self.config = Config(
+                portia_api_key=portia_api_key,
+                openai_api_key=openai_api_key,
+                default_model=default_model,
+                openai_model=default_model,
+                llm_provider="openai"
+            )
+        else:
+            # Fallback to default config (will work in demo mode)
+            self.config = Config.from_default()
         
         # Initialize Portia with custom tools and hooks
         self.portia = Portia(
@@ -33,9 +50,6 @@ class BaseInsuranceAgent:
         from src.tools.claim_tools import ClaimValidationTool  
         from src.tools.compliance_tools import ComplianceCheckTool
         
-        # Start with empty registry for base implementation
-        tools = ToolRegistry()
-        
         # Add insurance-specific tools
         custom_tools = [
             PolicyLookupTool(),
@@ -43,8 +57,8 @@ class BaseInsuranceAgent:
             ComplianceCheckTool()
         ]
         
-        for tool in custom_tools:
-            tools = tools + ToolRegistry([tool])
+        # Create registry with all tools at once
+        tools = ToolRegistry(custom_tools)
         
         return tools
     
@@ -76,15 +90,27 @@ class BaseInsuranceAgent:
         
         return None
     
-    def _after_tool_call_hook(self, tool, args, result, plan_run, step):
+    def _after_tool_call_hook(self, tool, output, plan_run, step):
         """Post-tool execution audit logging"""
+        # Extract arguments from the step if available
+        args = {}
+        if hasattr(step, 'inputs') and step.inputs:
+            args = step.inputs
+        
+        # Convert step to serializable format
+        step_index = 0
+        if hasattr(step, 'index'):
+            step_index = step.index
+        elif isinstance(step, int):
+            step_index = step
+        
         audit_entry = {
             "timestamp": datetime.now().isoformat(),
             "tool_name": tool.name,
             "arguments": args,
-            "result_summary": self._summarize_result(result),
+            "result_summary": self._summarize_result(output),
             "plan_run_id": str(plan_run.id),
-            "step_index": step
+            "step_index": step_index
         }
         
         # Log to audit trail
@@ -106,8 +132,11 @@ class BaseInsuranceAgent:
         """Log audit entry for compliance tracking"""
         if os.getenv("ENABLE_AUDIT_LOGGING", "false").lower() == "true":
             audit_file = f"audit_trail_{self.agent_name}.log"
-            with open(audit_file, "a") as f:
-                f.write(json.dumps(audit_entry) + "\n")
+            try:
+                with open(audit_file, "a") as f:
+                    f.write(json.dumps(audit_entry, default=str) + "\n")
+            except Exception as e:
+                logger.error(f"Error writing to audit file: {e}")
         
         logger.info(f"Audit: {audit_entry['tool_name']} executed at {audit_entry['timestamp']}")
     
@@ -145,11 +174,11 @@ class BaseInsuranceAgent:
             # Extract results and audit data
             result = {
                 "claim_id": claim_data.get("claim_id"),
-                "processing_status": "completed" if hasattr(plan_run, 'state') and plan_run.state.name == "COMPLETE" else "requires_clarification",
-                "settlement_recommendation": getattr(plan_run.outputs, 'final_output', {}).get('value') if hasattr(plan_run, 'outputs') else None,
+                "processing_status": "completed" if hasattr(plan_run, 'state') and getattr(plan_run.state, 'name', '') == "COMPLETE" else "requires_clarification",
+                "settlement_recommendation": getattr(getattr(plan_run, 'outputs', {}), 'final_output', None),
                 "audit_trail": self._extract_audit_trail(plan_run),
-                "clarifications_raised": len(getattr(plan_run.outputs, 'clarifications', [])) if hasattr(plan_run, 'outputs') else 0,
-                "plan_run_id": str(plan_run.id)
+                "clarifications_raised": len(getattr(getattr(plan_run, 'outputs', {}), 'clarifications', [])) if hasattr(plan_run, 'outputs') else 0,
+                "plan_run_id": str(getattr(plan_run, 'id', 'unknown'))
             }
             
             return result
@@ -167,7 +196,57 @@ class BaseInsuranceAgent:
         # This would extract the actual audit information from Portia
         # For now, return basic information
         return [{
-            "plan_run_id": str(plan_run.id),
-            "status": getattr(plan_run, 'state', {}).get('name', 'unknown') if hasattr(plan_run, 'state') else 'unknown',
+            "plan_run_id": str(getattr(plan_run, 'id', 'unknown')),
+            "status": getattr(getattr(plan_run, 'state', {}), 'name', 'unknown') if hasattr(plan_run, 'state') else 'unknown',
             "execution_timestamp": datetime.now().isoformat()
         }]
+
+
+# Enhanced agent with emotion awareness
+class EmotionAwareAgent(BaseInsuranceAgent):
+    """Enhanced agent with emotion awareness"""
+    
+    def _setup_tool_registry(self):
+        """Add voice and emotion tools to registry"""
+        base_tools = super()._setup_tool_registry()
+        
+        # Import voice tools here to avoid circular imports
+        from src.voice.hume_integration import HumeEmotionAnalysisTool, VoiceResponseGeneratorTool
+        
+        emotion_tools = [
+            HumeEmotionAnalysisTool(),
+            VoiceResponseGeneratorTool()
+        ]
+        
+        # Add voice tools to the registry
+        for tool in emotion_tools:
+            base_tools = base_tools + ToolRegistry([tool])
+        
+        return base_tools
+    
+    async def process_voice_claim(self, audio_data: str, claim_context: Dict) -> Dict[str, Any]:
+        """Process claim with voice emotion analysis"""
+        
+        # First analyze the emotional context
+        emotion_plan = self.portia.plan(
+            f"Analyze customer emotion from voice input for claim {claim_context.get('claim_id')}",
+            plan_inputs=[{"name": "audio_data", "description": "Audio data to analyze"}]
+        )
+        emotion_run = self.portia.run_plan(
+            emotion_plan,
+            plan_run_inputs={"audio_data": audio_data}
+        )
+        
+        # Extract emotion data and incorporate into claim processing
+        emotion_result = emotion_run.outputs.final_output.value if hasattr(emotion_run.outputs, 'final_output') and hasattr(emotion_run.outputs.final_output, 'value') else {}
+        
+        # Enhanced claim data with emotional context
+        enhanced_claim_data = {
+            **claim_context,
+            "customer_emotion": emotion_result.get("primary_emotion", "neutral") if isinstance(emotion_result, dict) else "neutral",
+            "stress_level": emotion_result.get("stress_level", 0.5) if isinstance(emotion_result, dict) else 0.5,
+            "requires_special_handling": emotion_result.get("intervention_recommended", False) if isinstance(emotion_result, dict) else False
+        }
+        
+        # Process with emotion-aware handling
+        return await self.process_claim(enhanced_claim_data)
