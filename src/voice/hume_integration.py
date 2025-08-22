@@ -6,6 +6,7 @@ import base64
 from typing import Dict, List, Optional
 import logging
 import os
+from .emotion_analyzer import EmotionAnalyzer, EmotionalContext
 
 logger = logging.getLogger(__name__)
 
@@ -123,10 +124,37 @@ class HumeEmotionAnalysisTool(Tool):
 class VoiceResponseGeneratorTool(Tool):
     """Generate emotionally appropriate voice responses"""
     
-    async def run(self, ctx: ToolRunContext, message: str, target_emotion: str = "empathetic") -> Dict[str, str]:
+    def __init__(self):
+        super().__init__()
+        self.emotion_analyzer = EmotionAnalyzer()
+    
+    async def run(self, ctx: ToolRunContext, message: str, emotional_context: dict = None, target_emotion: str = "empathetic") -> Dict[str, str]:
         """Generate voice response adapted to emotional context"""
         
-        # Emotional response templates
+        # If we have emotional context, adapt the response accordingly
+        if emotional_context:
+            # Convert dict to EmotionalContext model
+            emotion_ctx = EmotionalContext(**emotional_context)
+            
+            # Get response strategy based on emotion
+            strategy = self.emotion_analyzer.get_response_strategy(emotion_ctx)
+            
+            # Adapt response to emotion
+            adapted_message = self.emotion_analyzer.adapt_response_to_emotion(message, emotion_ctx)
+            
+            # Use the first tone indicator as the suggested tone
+            suggested_tone = strategy["tone_indicators"][0] if strategy["tone_indicators"] else "professional"
+            
+            return {
+                "response_text": adapted_message,
+                "suggested_tone": suggested_tone,
+                "emotion_adaptation": emotion_ctx.primary_emotion,
+                "needs_escalation": strategy["needs_escalation"],
+                "escalation_reason": strategy["escalation_reason"],
+                "estimated_speech_duration": len(adapted_message.split()) * 0.6  # Rough estimate
+            }
+        
+        # Fallback to basic templates if no emotional context
         templates = {
             "empathetic": {
                 "prefix": "I understand this is a difficult situation for you.",
@@ -143,13 +171,13 @@ class VoiceResponseGeneratorTool(Tool):
         }
         
         template = templates.get(target_emotion, templates["professional"])
-        
-        # Construct emotionally appropriate response
         response = f"{template['prefix']} {message}"
         
         return {
             "response_text": response,
             "suggested_tone": template["tone"],
             "emotion_adaptation": target_emotion,
+            "needs_escalation": False,
+            "escalation_reason": None,
             "estimated_speech_duration": len(response.split()) * 0.6  # Rough estimate
         }

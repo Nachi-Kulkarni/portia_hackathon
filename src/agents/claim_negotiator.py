@@ -4,6 +4,7 @@ from src.tools.policy_tools import PolicyLookupTool
 from src.tools.claim_tools import ClaimValidationTool
 from src.tools.precedent_tools import PrecedentAnalysisTool
 from src.tools.compliance_tools import ComplianceCheckTool, SettlementOfferTool
+from src.agents.escalation_manager import EscalationManager, EscalationContext
 from portia.tool_registry import ToolRegistry
 from typing import Dict, Any, List
 import logging
@@ -13,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 class ClaimNegotiationAgent(BaseInsuranceAgent):
     """Complete claim negotiation agent with voice integration"""
+    
+    def __init__(self):
+        super().__init__()
+        self.escalation_manager = EscalationManager()
     
     def _setup_tool_registry(self) -> ToolRegistry:
         """Configure complete tool suite"""
@@ -85,16 +90,40 @@ class ClaimNegotiationAgent(BaseInsuranceAgent):
             
             # Extract comprehensive results
             if hasattr(plan_run, 'state') and plan_run.state.name == "COMPLETE":
-                return {
+                emotion_data = self._extract_emotion_data(plan_run)
+                compliance_data = self._extract_compliance_data(plan_run)
+                settlement_offer = getattr(plan_run.outputs, 'final_output', {}).get('value') if hasattr(plan_run, 'outputs') else None
+                
+                # Check if escalation is needed
+                escalation_context = EscalationContext(
+                    conversation_history=[],
+                    emotion_analysis=emotion_data,
+                    claim_details=claim_data,
+                    settlement_amount=settlement_offer.get('amount', 0) if isinstance(settlement_offer, dict) else 0,
+                    legal_indicators=[],
+                    compliance_flags=compliance_data.get('violations', []),
+                    customer_id=claim_data.get('customer_id', 'anonymous')
+                )
+                
+                escalation_evaluation = self.escalation_manager.evaluate_escalation_need(escalation_context)
+                
+                result = {
                     "status": "negotiation_complete",
                     "claim_id": claim_data.get("claim_id"),
-                    "settlement_offer": getattr(plan_run.outputs, 'final_output', {}).get('value') if hasattr(plan_run, 'outputs') else None,
-                    "emotional_analysis": self._extract_emotion_data(plan_run),
-                    "compliance_status": self._extract_compliance_data(plan_run),
+                    "settlement_offer": settlement_offer,
+                    "emotional_analysis": emotion_data,
+                    "compliance_status": compliance_data,
                     "audit_trail": self._extract_full_audit_trail(plan_run),
                     "plan_run_id": str(plan_run.id),
-                    "processing_time_seconds": self._calculate_processing_time(plan_run)
+                    "processing_time_seconds": self._calculate_processing_time(plan_run),
+                    "escalation_evaluation": escalation_evaluation
                 }
+                
+                # Add escalation details if needed
+                if escalation_evaluation['should_escalate']:
+                    result["escalation_details"] = self.escalation_manager.create_handoff_package(escalation_context, plan_run)
+                
+                return result
             else:
                 clarifications = getattr(plan_run.outputs, 'clarifications', []) if hasattr(plan_run, 'outputs') else []
                 return {
@@ -152,7 +181,8 @@ class ClaimNegotiationAgent(BaseInsuranceAgent):
         return {
             "compliant": True,
             "risk_level": "low",
-            "required_approvals": []
+            "required_approvals": [],
+            "violations": []
         }
     
     def _extract_full_audit_trail(self, plan_run) -> List[Dict[str, Any]]:
