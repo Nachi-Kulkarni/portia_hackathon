@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 from typing import Dict, Optional
 import logging
 from datetime import datetime
+from src.config import SETTLEMENT_CONFIG
+from src.utils.exceptions import SettlementCalculationError
 
 logger = logging.getLogger(__name__)
 
@@ -83,18 +85,29 @@ class SettlementOfferTool(Tool):
             )
     
     def _calculate_emotional_adjustment(self, emotional_context: str, stress_level: float) -> float:
-        """Calculate adjustment factor based on emotional context"""
+        """Calculate adjustment factor based on emotional context using configurable thresholds"""
         # Base adjustment
         adjustment = 1.0
         
-        # Increase for high stress/negative emotions (show empathy)
-        if emotional_context in ["anger", "frustration", "sadness"] and stress_level > 0.7:
-            adjustment = 1.05  # Slight increase to show empathy
-        elif emotional_context in ["anger", "frustration"] and stress_level > 0.8:
-            adjustment = 1.07  # Higher increase for very angry customers
+        # Log emotional context for audit
+        logger.info(f"Calculating emotional adjustment for {emotional_context} with stress level {stress_level:.2f}")
         
-        # Ensure reasonable bounds
-        return max(0.9, min(1.1, adjustment))
+        # Increase for high stress/negative emotions (show empathy) using config
+        if emotional_context in ["anger", "frustration", "sadness"] and stress_level > SETTLEMENT_CONFIG.HIGH_STRESS_THRESHOLD:
+            adjustment = SETTLEMENT_CONFIG.EMPATHY_ADJUSTMENT_FACTOR
+            logger.info(f"Applied empathy adjustment: {adjustment:.3f} for {emotional_context}")
+        elif emotional_context in ["anger", "frustration"] and stress_level > SETTLEMENT_CONFIG.VERY_HIGH_STRESS_THRESHOLD:
+            adjustment = SETTLEMENT_CONFIG.HIGH_ANGER_ADJUSTMENT_FACTOR
+            logger.warning(f"Applied high anger adjustment: {adjustment:.3f} for very stressed customer")
+        
+        # Ensure reasonable bounds using config
+        bounded_adjustment = max(SETTLEMENT_CONFIG.MIN_ADJUSTMENT_FACTOR, 
+                                min(SETTLEMENT_CONFIG.MAX_ADJUSTMENT_FACTOR, adjustment))
+        
+        if bounded_adjustment != adjustment:
+            logger.warning(f"Adjustment factor bounded from {adjustment:.3f} to {bounded_adjustment:.3f}")
+        
+        return bounded_adjustment
     
     def _calculate_confidence(self, claim_amount: float, policy_coverage: float, 
                              damage_assessment: float) -> float:
@@ -114,9 +127,14 @@ class SettlementOfferTool(Tool):
     
     def _requires_special_approval(self, settlement_amount: float, 
                                   policy_coverage: float) -> bool:
-        """Determine if special approval is required"""
-        # Require approval for high-value settlements
-        return settlement_amount > policy_coverage * 0.8
+        """Determine if special approval is required using configurable threshold"""
+        threshold_amount = policy_coverage * SETTLEMENT_CONFIG.SPECIAL_APPROVAL_PERCENTAGE
+        requires_approval = settlement_amount > threshold_amount
+        
+        if requires_approval:
+            logger.warning(f"Special approval required: ${settlement_amount:,.2f} > ${threshold_amount:,.2f} ({SETTLEMENT_CONFIG.SPECIAL_APPROVAL_PERCENTAGE:.1%} of coverage)")
+        
+        return requires_approval
     
     def _generate_reasoning(self, base_settlement: float, final_settlement: float,
                            emotional_context: str, adjustment_factor: float,

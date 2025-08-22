@@ -6,6 +6,8 @@ import logging
 import os
 from datetime import datetime, date
 from src.tools.policy_tools import PolicyInfo
+from src.config import CLAIM_VALIDATION_CONFIG
+from src.utils.exceptions import ClaimValidationError, InvalidDateFormatError
 
 logger = logging.getLogger(__name__)
 
@@ -83,27 +85,34 @@ class ClaimValidationTool(Tool):
             if claim.estimated_amount > policy.coverage_amount:
                 issues.append(f"Claim amount ${claim.estimated_amount} exceeds policy limit ${policy.coverage_amount}")
         
-        # Fraud risk indicators
-        if claim.estimated_amount > 50000:
-            fraud_score += 0.2  # High value claims have higher scrutiny
+        # Fraud risk indicators using configurable thresholds
+        if claim.estimated_amount > CLAIM_VALIDATION_CONFIG.HIGH_VALUE_CLAIM_THRESHOLD:
+            fraud_score += CLAIM_VALIDATION_CONFIG.HIGH_VALUE_FRAUD_SCORE_INCREASE
         
-        # Check for late reporting (simplified date parsing)
-        try:
-            if hasattr(claim, 'incident_date') and claim.incident_date:
-                incident_date = datetime.fromisoformat(claim.incident_date.replace('Z', '+00:00'))
+        # Check for late reporting with proper exception handling
+        if hasattr(claim, 'incident_date') and claim.incident_date:
+            try:
+                # Handle various date formats
+                date_str = claim.incident_date.replace('Z', '+00:00')
+                incident_date = datetime.fromisoformat(date_str)
                 days_since_incident = (datetime.now() - incident_date).days
-                if days_since_incident > 30:
-                    fraud_score += 0.1  # Late reporting
-        except:
-            pass  # Skip date validation if parsing fails
+                
+                if days_since_incident > CLAIM_VALIDATION_CONFIG.LATE_REPORTING_DAYS_THRESHOLD:
+                    fraud_score += CLAIM_VALIDATION_CONFIG.LATE_REPORTING_FRAUD_SCORE_INCREASE
+                    logger.info(f"Late reporting detected: {days_since_incident} days since incident")
+                    
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Could not parse incident date '{claim.incident_date}': {e}")
+                # Don't fail validation, but log the issue
+                issues.append(f"Invalid incident date format: {claim.incident_date}")
             
-        if len(claim.supporting_documents) < 2:
-            fraud_score += 0.3  # Insufficient documentation
-            issues.append("Insufficient supporting documentation")
+        if len(claim.supporting_documents) < CLAIM_VALIDATION_CONFIG.MIN_SUPPORTING_DOCUMENTS:
+            fraud_score += CLAIM_VALIDATION_CONFIG.INSUFFICIENT_DOCS_FRAUD_SCORE_INCREASE
+            issues.append(f"Insufficient supporting documentation (need at least {CLAIM_VALIDATION_CONFIG.MIN_SUPPORTING_DOCUMENTS})")
         
-        # Determine overall validity
-        is_valid = len(issues) == 0 and fraud_score < 0.7
-        requires_investigation = fraud_score > 0.5
+        # Determine overall validity using configurable thresholds
+        is_valid = len(issues) == 0 and fraud_score < CLAIM_VALIDATION_CONFIG.FRAUD_SCORE_THRESHOLD
+        requires_investigation = fraud_score > CLAIM_VALIDATION_CONFIG.INVESTIGATION_THRESHOLD
         
         if is_valid:
             recommended_action = "approve_for_settlement"

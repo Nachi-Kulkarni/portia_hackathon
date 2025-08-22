@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from datetime import datetime, date
+from src.utils.exceptions import PolicyNotFoundError, ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -41,38 +42,67 @@ class PolicyLookupTool(Tool):
         )
     
     def run(self, ctx: ToolRunContext, policy_number: str) -> Optional[PolicyInfo]:
-        """Retrieve policy information"""
+        """Retrieve policy information with proper error handling"""
+        logger.info(f"Looking up policy: {policy_number}")
+        
         try:
             # In a real implementation, this would query a database or external API
-            # For now, we'll use the mock data as a starting point for actual implementation
             mock_data_path = os.getenv("MOCK_POLICY_DB_PATH", "./src/data/mock_policies.json")
             
-            with open(mock_data_path, 'r') as f:
-                data = json.load(f)
+            if not os.path.exists(mock_data_path):
+                raise ConfigurationError("MOCK_POLICY_DB_PATH", f"Policy database file not found: {mock_data_path}")
+            
+            try:
+                with open(mock_data_path, 'r') as f:
+                    data = json.load(f)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in policy database: {e}")
+                raise ConfigurationError("MOCK_POLICY_DB_PATH", f"Invalid JSON format in policy database: {e}")
+            except IOError as e:
+                logger.error(f"Could not read policy database: {e}")
+                raise ConfigurationError("MOCK_POLICY_DB_PATH", f"Could not read policy database: {e}")
             
             # Find policy in mock data
-            for policy in data.get("policies", []):
-                if policy["policy_number"] == policy_number:
-                    # Convert the mock data to match our PolicyInfo model
-                    converted_policy = {
-                        "policy_number": policy["policy_number"],
-                        "customer_id": policy["customer_id"],
-                        "policy_type": policy["policy_type"],
-                        "coverage_amount": policy["coverage_amount"],
-                        "deductible": policy["deductible"],
-                        "premium_amount": policy.get("premium", 0),  # Handle missing premium field
-                        "status": policy["status"],
-                        "effective_date": policy["effective_date"],
-                        "expiration_date": policy["expiration_date"],
-                        "exclusions": policy["exclusions"],
-                        "additional_coverages": policy["additional_coverages"]
-                    }
-                    return PolicyInfo(**converted_policy)
+            policies = data.get("policies", [])
+            if not isinstance(policies, list):
+                raise ConfigurationError("MOCK_POLICY_DB_PATH", "Policy database must contain 'policies' array")
             
-            # Policy not found
-            logger.warning(f"Policy {policy_number} not found")
-            return None
+            for policy in policies:
+                if policy.get("policy_number") == policy_number:
+                    try:
+                        # Convert the mock data to match our PolicyInfo model
+                        converted_policy = {
+                            "policy_number": policy["policy_number"],
+                            "customer_id": policy["customer_id"],
+                            "policy_type": policy["policy_type"],
+                            "coverage_amount": policy["coverage_amount"],
+                            "deductible": policy["deductible"],
+                            "premium_amount": policy.get("premium", policy.get("premium_amount", 0)),
+                            "status": policy["status"],
+                            "effective_date": policy["effective_date"],
+                            "expiration_date": policy["expiration_date"],
+                            "exclusions": policy.get("exclusions", []),
+                            "additional_coverages": policy.get("additional_coverages", {})
+                        }
+                        
+                        policy_info = PolicyInfo(**converted_policy)
+                        logger.info(f"Found policy {policy_number}: {policy_info.policy_type}, ${policy_info.coverage_amount:,.2f} coverage")
+                        return policy_info
+                        
+                    except KeyError as e:
+                        logger.error(f"Missing required field in policy {policy_number}: {e}")
+                        raise ConfigurationError("MOCK_POLICY_DB_PATH", f"Policy {policy_number} missing required field: {e}")
+                    except (TypeError, ValueError) as e:
+                        logger.error(f"Invalid data type in policy {policy_number}: {e}")
+                        raise ConfigurationError("MOCK_POLICY_DB_PATH", f"Invalid data in policy {policy_number}: {e}")
             
+            # Policy not found - this is a business logic issue, not a system error
+            logger.warning(f"Policy {policy_number} not found in database with {len(policies)} policies")
+            raise PolicyNotFoundError(policy_number)
+            
+        except (PolicyNotFoundError, ConfigurationError):
+            # Re-raise business logic and configuration errors
+            raise
         except Exception as e:
-            logger.error(f"Error looking up policy {policy_number}: {str(e)}")
-            return None
+            logger.error(f"Unexpected error looking up policy {policy_number}: {str(e)}")
+            raise ConfigurationError("POLICY_LOOKUP", f"Unexpected error: {str(e)}")

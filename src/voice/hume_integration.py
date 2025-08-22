@@ -7,6 +7,8 @@ from typing import Optional
 import httpx
 import json
 from datetime import datetime
+from src.config import HUME_CONFIG
+from src.utils.exceptions import HumeAPIError, AudioProcessingError
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +119,13 @@ class HumeEmotionAnalysisTool(Tool):
                 }
             )
             
-            # Poll for completion (simplified for MVP)
-            max_polls = 30
-            for _ in range(max_polls):
+            # Poll for completion using configurable limits
+            max_polls = HUME_CONFIG.JOB_POLL_MAX_ATTEMPTS
+            poll_interval = HUME_CONFIG.JOB_POLL_INTERVAL_SECONDS
+            
+            logger.info(f"Starting Hume job polling: max {max_polls} attempts, {poll_interval}s intervals")
+            
+            for attempt in range(max_polls):
                 job_status = client.expression_measurement.batch.get_job_details(job_id)
                 
                 # Check job state using the correct attribute
@@ -134,21 +140,31 @@ class HumeEmotionAnalysisTool(Tool):
                     return self._parse_hume_sdk_response(predictions)
                 
                 elif hasattr(job_status, 'state') and job_status.state in ["FAILED", "CANCELED"]:
-                    logger.error(f"Hume job {job_id} failed")
-                    break
+                    error_msg = f"Hume job {job_id} failed with state: {job_status.state}"
+                    logger.error(error_msg)
+                    raise HumeAPIError(error_msg)
                 
-                time.sleep(1)
+                if attempt < max_polls - 1:  # Don't sleep on last attempt
+                    time.sleep(poll_interval)
             
             # Cleanup on timeout/failure
             import os
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
                 
-            logger.warning("Hume analysis timed out, falling back to mock")
+            timeout_msg = f"Hume analysis timed out after {max_polls} attempts"
+            logger.warning(timeout_msg)
+            # Still return mock data for graceful degradation
             return self._generate_mock_emotion_analysis(audio_data)
             
+        except (ImportError, ModuleNotFoundError) as e:
+            logger.warning(f"Hume SDK not available: {str(e)}, falling back to direct API")
+            return self._analyze_with_direct_api(audio_data, audio_format)
+        except HumeAPIError as e:
+            logger.error(f"Hume API error: {str(e)}, falling back to mock")
+            return self._generate_mock_emotion_analysis(audio_data)
         except Exception as e:
-            logger.error(f"Hume SDK analysis failed: {str(e)}")
+            logger.error(f"Unexpected Hume SDK error: {str(e)}, falling back to mock")
             return self._generate_mock_emotion_analysis(audio_data)
     
     def _analyze_with_direct_api(self, audio_data: str, audio_format: str) -> EmotionAnalysisResult:
@@ -183,8 +199,10 @@ class HumeEmotionAnalysisTool(Tool):
                 "file": ("audio.wav", audio_bytes, "audio/wav")
             }
             
-            # Submit job
-            response = requests.post(url, headers=headers, files=files, timeout=10)
+            # Submit job with configurable timeout
+            timeout = HUME_CONFIG.HUME_API_TIMEOUT
+            logger.debug(f"Submitting Hume API job with {timeout}s timeout")
+            response = requests.post(url, headers=headers, files=files, timeout=timeout)
             
             if response.status_code == 201:
                 job_info = response.json()
@@ -198,8 +216,14 @@ class HumeEmotionAnalysisTool(Tool):
             logger.warning(f"Hume API returned status {response.status_code}, falling back to mock")
             return self._generate_mock_emotion_analysis(audio_data)
             
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Hume API timeout after {HUME_CONFIG.HUME_API_TIMEOUT}s: {str(e)}")
+            return self._generate_mock_emotion_analysis(audio_data)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Hume API request failed: {str(e)}")
+            return self._generate_mock_emotion_analysis(audio_data)
         except Exception as e:
-            logger.error(f"Direct Hume API error: {str(e)}, falling back to mock")
+            logger.error(f"Unexpected direct API error: {str(e)}, falling back to mock")
             return self._generate_mock_emotion_analysis(audio_data)
     
     def _parse_hume_sdk_response(self, predictions) -> EmotionAnalysisResult:
@@ -266,12 +290,20 @@ class HumeEmotionAnalysisTool(Tool):
             logger.error(f"Error parsing Hume SDK response: {str(e)}")
             return self._generate_mock_emotion_analysis("")
     
-    def _poll_hume_results(self, job_id: str, headers: dict, max_polls: int = 20) -> dict:
-        """Poll Hume API for job completion"""
+    def _poll_hume_results(self, job_id: str, headers: dict, max_polls: int = None) -> dict:
+        """Poll Hume API for job completion with configurable limits"""
         import time
         import requests
         
-        for _ in range(max_polls):
+        if max_polls is None:
+            max_polls = HUME_CONFIG.JOB_POLL_MAX_ATTEMPTS
+        
+        poll_interval = HUME_CONFIG.JOB_POLL_INTERVAL_SECONDS
+        results_timeout = HUME_CONFIG.HUME_RESULTS_TIMEOUT
+        
+        logger.info(f"Polling Hume results for job {job_id}: {max_polls} max attempts")
+        
+        for attempt in range(max_polls):
             try:
                 status_url = f"https://api.hume.ai/v0/batch/jobs/{job_id}"
                 response = requests.get(status_url, headers=headers, timeout=5)
@@ -282,7 +314,7 @@ class HumeEmotionAnalysisTool(Tool):
                     if job_status.get("state") == "COMPLETED":
                         # Get results
                         results_url = f"https://api.hume.ai/v0/batch/jobs/{job_id}/predictions"
-                        results_response = requests.get(results_url, headers=headers, timeout=10)
+                        results_response = requests.get(results_url, headers=headers, timeout=results_timeout)
                         
                         if results_response.status_code == 200:
                             return results_response.json()
@@ -291,10 +323,18 @@ class HumeEmotionAnalysisTool(Tool):
                         logger.error(f"Hume job {job_id} failed: {job_status.get('message', 'Unknown error')}")
                         break
                 
-                time.sleep(1)  # Wait 1 second before next poll
+                if attempt < max_polls - 1:  # Don't sleep on last attempt
+                    time.sleep(poll_interval)
                 
+            except requests.exceptions.Timeout as e:
+                logger.warning(f"Timeout polling Hume job {job_id} on attempt {attempt + 1}: {str(e)}")
+                if attempt == max_polls - 1:  # Last attempt
+                    break
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request error polling Hume job {job_id}: {str(e)}")
+                break
             except Exception as e:
-                logger.error(f"Error polling Hume job {job_id}: {str(e)}")
+                logger.error(f"Unexpected error polling Hume job {job_id}: {str(e)}")
                 break
         
         return None
