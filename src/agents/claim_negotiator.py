@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 class ClaimNegotiationAgent(BaseInsuranceAgent):
     """Complete claim negotiation agent with voice integration"""
     
+    def __init__(self):
+        super().__init__()
+    
     def _setup_tool_registry(self) -> ToolRegistry:
         """Configure complete tool suite"""
         # Create tool registry with all tools at once
@@ -190,7 +193,8 @@ class ClaimNegotiationAgent(BaseInsuranceAgent):
         return {
             "compliant": True,
             "risk_level": "low",
-            "required_approvals": []
+            "required_approvals": [],
+            "violations": []
         }
     
     def _extract_full_audit_trail(self, plan_run) -> List[Dict[str, Any]]:

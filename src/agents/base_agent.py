@@ -7,6 +7,7 @@ import logging
 import os
 from datetime import datetime
 import json
+from src.hooks.escalation_triggers import get_insurance_execution_hooks
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +65,8 @@ class BaseInsuranceAgent:
     
     def _setup_execution_hooks(self) -> ExecutionHooks:
         """Configure execution hooks for compliance and escalation"""
-        return ExecutionHooks(
-            before_tool_call=self._before_tool_call_hook,
-            after_tool_call=self._after_tool_call_hook
-        )
+        # Use our custom insurance execution hooks
+        return get_insurance_execution_hooks()
     
     def _before_tool_call_hook(self, tool, args, plan_run, step):
         """Pre-tool execution compliance and escalation checks"""

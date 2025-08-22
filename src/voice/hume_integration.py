@@ -445,8 +445,6 @@ class VoiceResponseGeneratorTool(Tool):
     
     def run(self, ctx: ToolRunContext, message: str, target_emotion: str = "empathetic") -> Dict[str, str]:
         """Generate voice response adapted to emotional context"""
-        
-        # Emotional response templates
         templates = {
             "empathetic": {
                 "prefix": "I understand this is a difficult situation for you.",
