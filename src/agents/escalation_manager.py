@@ -1,4 +1,4 @@
-from portia.clarifications import (
+from portia.clarification import (
     ActionClarification, 
     UserVerificationClarification,
     MultipleChoiceClarification

@@ -1,5 +1,5 @@
 from portia.execution_hooks import ExecutionHooks
-from portia.clarifications import ActionClarification, UserVerificationClarification
+from portia.clarification import ActionClarification, UserVerificationClarification
 from src.agents.escalation_manager import EscalationManager, EscalationContext
 from src.hooks.audit_logger import AuditLoggerTool
 from typing import Dict, Any, List

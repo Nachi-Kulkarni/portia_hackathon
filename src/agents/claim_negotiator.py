@@ -5,10 +5,16 @@ from src.tools.claim_tools import ClaimValidationTool
 from src.tools.precedent_tools import PrecedentAnalysisTool
 from src.tools.compliance_tools import ComplianceCheckTool
 from src.tools.settlement_tools import SettlementOfferTool
+from src.agents.escalation_manager import EscalationManager, EscalationContext
+from src.voice.emotion_analyzer import EmotionAnalyzer, EmotionalContext
+from src.hooks.audit_logger import AuditTrailManager, AuditEntry
 from portia.tool_registry import ToolRegistry
 from typing import Dict, Any, List
 import logging
 from datetime import datetime
+
+# Import Day 2 enhancement methods
+import src.agents.claim_negotiator_day2_methods
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +23,10 @@ class ClaimNegotiationAgent(BaseInsuranceAgent):
     
     def __init__(self):
         super().__init__()
+        # Day 2: Initialize escalation and audit systems
+        self.escalation_manager = EscalationManager()
+        self.emotion_analyzer = EmotionAnalyzer()
+        self.audit_manager = AuditTrailManager()
     
     def _setup_tool_registry(self) -> ToolRegistry:
         """Configure complete tool suite"""
@@ -58,16 +68,37 @@ class ClaimNegotiationAgent(BaseInsuranceAgent):
             # Step 3: Process comprehensive claim analysis
             analysis_result = await self._process_claim_analysis(enhanced_claim)
             
-            return {
-                "status": "negotiation_complete",
+            # Day 2: Step 4: Escalation evaluation
+            escalation_result = self._evaluate_escalation_needs(
+                emotion_result, claim_data, analysis_result
+            )
+            
+            # Day 2: Step 5: Enhanced response generation
+            response_result = self._generate_enhanced_response(
+                emotion_result, analysis_result, escalation_result
+            )
+            
+            # Day 2: Step 6: Create comprehensive audit trail
+            audit_entry = self._create_audit_entry(
+                claim_data, emotion_result, analysis_result, escalation_result
+            )
+            
+            final_result = {
+                "status": "requires_escalation" if escalation_result["should_escalate"] else "negotiation_complete",
                 "claim_id": claim_data.get("claim_id"),
                 "settlement_offer": analysis_result.get("settlement_offer"),
                 "emotional_analysis": emotion_result,
                 "policy_verification": analysis_result.get("policy_status"),
                 "compliance_status": analysis_result.get("compliance"),
+                "escalation_evaluation": escalation_result,
+                "enhanced_response": response_result,
+                "audit_trail_id": audit_entry.entry_id if audit_entry else None,
                 "plan_run_id": analysis_result.get("plan_run_id", "direct-execution"),
-                "processing_time_seconds": 3.8
+                "processing_time_seconds": 3.8,
+                "day2_features_active": True
             }
+            
+            return final_result
                 
         except Exception as e:
             logger.error(f"Pipeline error for claim {claim_data.get('claim_id')}: {str(e)}")
