@@ -1,3 +1,9 @@
+# Apply compatibility fix for Python < 3.12 BEFORE importing anything that uses Portia
+try:
+    import src.compatibility_fix  # This patches typing.override
+except ImportError:
+    pass  # Continue without compatibility fix
+
 from portia import Tool, ToolRunContext
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
@@ -142,27 +148,26 @@ class AuditTrailManager:
             # Default to JSON even if format not recognized
             return json.dumps([entry.dict() for entry in entries], indent=2)
 
-class AuditLoggerTool(Tool):
-    """Portia tool for logging actions to audit trail"""
+class AuditLoggerTool:
+    """Audit logging utility for regulatory compliance"""
     
     def __init__(self):
-        super().__init__()
         self.audit_manager = AuditTrailManager()
     
-    def run(self, ctx: ToolRunContext, action_type: str, arguments: Dict[str, Any], 
-            result: Any, compliance_flags: List[str] = None, 
-            risk_indicators: List[str] = None, justification: str = None) -> Dict[str, Any]:
+    def log_action(self, action_type: str, arguments: Dict[str, Any], 
+                  result: Any, compliance_flags: List[str] = None, 
+                  risk_indicators: List[str] = None, justification: str = None) -> Dict[str, Any]:
         """Log an action to the audit trail"""
         
         # Create audit entry
         entry = AuditEntry(
             action_type=action_type,
-            tool_name=getattr(ctx, 'tool_name', None),
+            tool_name="audit_logger",
             arguments=arguments,
             result=result,
-            user_id=getattr(ctx, 'user_id', None),
-            plan_run_id=getattr(ctx, 'plan_run_id', None),
-            step_index=getattr(ctx, 'step_index', None),
+            user_id="system",
+            plan_run_id="audit-log",
+            step_index=0,
             compliance_flags=compliance_flags or [],
             risk_indicators=risk_indicators or [],
             justification=justification

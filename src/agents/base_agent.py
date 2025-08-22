@@ -1,5 +1,11 @@
+# Apply compatibility fix for Python < 3.12 BEFORE importing anything that uses Portia
+try:
+    import src.compatibility_fix  # This patches typing.override
+except ImportError:
+    pass  # Continue without compatibility fix
+
 from portia import Portia, Config
-from portia.tool_registry import ToolRegistry
+from portia import DefaultToolRegistry, ToolRegistry
 from portia.execution_hooks import ExecutionHooks
 from portia.clarification import ActionClarification, UserVerificationClarification
 from typing import Dict, Any, List, Optional
@@ -58,8 +64,9 @@ class BaseInsuranceAgent:
             ComplianceCheckTool()
         ]
         
-        # Create registry with all tools at once
-        tools = ToolRegistry(custom_tools)
+        # Create registry using proper Portia pattern
+        base_registry = DefaultToolRegistry(config=self.config)
+        tools = base_registry + custom_tools
         
         return tools
     

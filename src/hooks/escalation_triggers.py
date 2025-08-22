@@ -1,9 +1,16 @@
+# Apply compatibility fix for Python < 3.12 BEFORE importing anything that uses Portia
+try:
+    import src.compatibility_fix  # This patches typing.override
+except ImportError:
+    pass  # Continue without compatibility fix
+
 from portia.execution_hooks import ExecutionHooks
 from portia.clarification import ActionClarification, UserVerificationClarification
 from src.agents.escalation_manager import EscalationManager, EscalationContext
 from src.hooks.audit_logger import AuditLoggerTool
 from typing import Dict, Any, List
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -14,31 +21,26 @@ class InsuranceExecutionHooks:
         self.escalation_manager = EscalationManager()
         self.audit_logger = AuditLoggerTool()
     
-    def before_tool_call(self, tool, args, plan_run, step) -> Any:
-        """Intercept tool calls for compliance and escalation checks"""
+    def before_tool_call(self, ctx, tool, *args, **kwargs) -> Any:
+        """Intercept tool calls for compliance and escalation checks with proper context"""
         try:
-            # Log the tool call attempt
+            # Log the tool call attempt with proper context
             audit_result = self.audit_logger.run(
-                ctx=None,  # In a real implementation, this would be the actual context
+                ctx=ctx,  # Pass the real context with plan_run_id, user_id
                 action_type="tool_call_attempt",
-                arguments={"tool_name": tool.name, "args": args},
-                result=None,
-                justification=f"Pre-execution logging for tool {tool.name}"
+                tool_name=getattr(tool, 'name', type(tool).__name__),
+                arguments={"args": args, "kwargs": kwargs},
+                timestamp=datetime.now(),
+                justification=f"Pre-execution audit for {getattr(tool, 'name', type(tool).__name__)}"
             )
             
-            # Check for escalation triggers based on tool and arguments
-            if self._requires_human_oversight(tool.name, args):
-                return UserVerificationClarification(
-                    user_guidance=f"Human approval required for {tool.name} with settlement amount ${args.get('amount', 'N/A')}",
-                    require_confirmation=True
-                )
+            # Evaluate escalation with full context
+            escalation_needed = self._evaluate_escalation_triggers(ctx, tool, args, kwargs)
             
-            # Check for legal risk indicators
-            if self._detect_legal_threats(args) or self._detect_extreme_distress(args):
-                return ActionClarification(
-                    user_guidance="Human intervention required for sensitive situation. Escalating to senior claims manager.",
-                    action_url="/escalate-to-human",
-                    require_confirmation=True
+            if escalation_needed:
+                return UserVerificationClarification(
+                    message=f"Tool {getattr(tool, 'name', type(tool).__name__)} requires human approval",
+                    verification_type="escalation_approval"
                 )
             
         except Exception as e:
@@ -46,16 +48,18 @@ class InsuranceExecutionHooks:
             
         return None
     
-    def after_tool_call(self, tool, args, result, plan_run, step) -> Any:
-        """Log all actions for audit trail and compliance"""
+    def after_tool_call(self, ctx, tool, result, *args, **kwargs) -> Any:
+        """Log all actions for audit trail and compliance with proper context"""
         try:
-            # Log the completed tool call
+            # Log the completed tool call with proper context
             audit_result = self.audit_logger.run(
-                ctx=None,  # In a real implementation, this would be the actual context
+                ctx=ctx,  # Pass real context
                 action_type="tool_call_completed",
-                arguments={"tool_name": tool.name, "args": args},
+                tool_name=getattr(tool, 'name', type(tool).__name__),
+                arguments={"args": args, "kwargs": kwargs},
                 result=result,
-                justification=f"Post-execution logging for tool {tool.name}"
+                timestamp=datetime.now(),
+                justification=f"Post-execution audit for {getattr(tool, 'name', type(tool).__name__)}"
             )
             
             # Additional compliance checks based on result
@@ -111,6 +115,20 @@ class InsuranceExecutionHooks:
         # Check for emotional indicators
         primary_emotion = args.get('primary_emotion', 'neutral')
         if primary_emotion in ['anger', 'distress', 'anxiety'] and stress_level > 0.7:
+            return True
+            
+        return False
+    
+    def _evaluate_escalation_triggers(self, ctx, tool, args, kwargs) -> bool:
+        """Evaluate if escalation is needed based on context and tool execution"""
+        tool_name = getattr(tool, 'name', type(tool).__name__)
+        
+        # Check for high-value operations
+        if self._requires_human_oversight(tool_name, kwargs):
+            return True
+            
+        # Check for legal threats in arguments
+        if self._detect_legal_threats(kwargs) or self._detect_extreme_distress(kwargs):
             return True
             
         return False

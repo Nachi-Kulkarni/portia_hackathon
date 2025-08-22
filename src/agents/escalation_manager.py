@@ -1,3 +1,9 @@
+# Apply compatibility fix for Python < 3.12 BEFORE importing Portia
+try:
+    import src.compatibility_fix  # This patches typing.override
+except ImportError:
+    pass  # Continue without compatibility fix
+
 from portia.clarification import (
     ActionClarification, 
     UserVerificationClarification,
@@ -307,3 +313,63 @@ class EscalationManager:
             return f"Compliance issues detected: {', '.join(context.compliance_flags)}. Requires regulatory review."
         else:
             return "No immediate regulatory compliance issues detected."
+    
+    def evaluate(self, emotion_result: Dict, claim_data: Dict, analysis_result: Dict) -> Dict:
+        """Simplified evaluate method for direct use by ClaimNegotiationAgent"""
+        escalation_triggers = []
+        should_escalate = False
+        
+        # Define escalation thresholds
+        escalation_thresholds = {
+            'stress_level': 0.7,
+            'anger_level': 0.8,
+            'claim_amount': 100000,
+            'legal_keywords': ['lawyer', 'attorney', 'legal action', 'sue']
+        }
+        
+        # Check emotional stress
+        if emotion_result.get('stress_level', 0) > escalation_thresholds['stress_level']:
+            escalation_triggers.append("High customer stress detected")
+            should_escalate = True
+        
+        # Check for anger
+        if emotion_result.get('anger', 0) > escalation_thresholds['anger_level']:
+            escalation_triggers.append("High anger level detected") 
+            should_escalate = True
+        
+        # Check claim amount
+        if claim_data.get('estimated_amount', 0) > escalation_thresholds['claim_amount']:
+            escalation_triggers.append("High-value claim requires review")
+            should_escalate = True
+        
+        # Check for legal threats
+        transcript = emotion_result.get('transcript', '').lower()
+        if any(keyword in transcript for keyword in escalation_thresholds['legal_keywords']):
+            escalation_triggers.append("Legal threat detected")
+            should_escalate = True
+        
+        return {
+            'should_escalate': should_escalate,
+            'escalation_triggers': escalation_triggers,
+            'urgency_level': self._calculate_urgency_simple(escalation_triggers),
+            'recommended_action': self._get_recommended_action_simple(escalation_triggers)
+        }
+    
+    def _calculate_urgency_simple(self, triggers):
+        """Calculate urgency level based on number of triggers"""
+        if len(triggers) >= 3:
+            return "critical"
+        elif len(triggers) >= 2:
+            return "high" 
+        elif len(triggers) >= 1:
+            return "medium"
+        return "low"
+    
+    def _get_recommended_action_simple(self, triggers):
+        """Get recommended action based on triggers"""
+        if any("legal" in trigger.lower() for trigger in triggers):
+            return "Immediate supervisor and legal review required"
+        elif len(triggers) >= 2:
+            return "Supervisor review required"
+        else:
+            return "Continue with enhanced monitoring"

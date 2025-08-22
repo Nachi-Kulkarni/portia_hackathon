@@ -43,15 +43,29 @@ class HumeEmotionAnalysisTool(Tool):
         self._hume_api_key = os.getenv("HUME_API_KEY")
         self._hume_secret_key = os.getenv("HUME_SECRET_KEY")
         
-        if not self._hume_api_key or not self._hume_secret_key:
-            logger.warning("Hume AI keys not found. Tool will use mock data.")
+        # Check if demo mode is enabled
+        demo_mode = os.getenv('DEMO_MODE', 'false').lower() == 'true'
+        
+        if demo_mode:
+            logger.info("Demo mode enabled - using mock emotion analysis")
             self._use_mock = True
+        elif not self._hume_api_key or not self._hume_secret_key:
+            # Fail fast instead of silent fallback
+            from src.config import ConfigurationError
+            raise ConfigurationError(
+                "HUME_API_KEY and HUME_SECRET_KEY required for emotion analysis. "
+                "Set in .env file or enable demo mode with DEMO_MODE=true"
+            )
         else:
             self._use_mock = False
     
     def run(self, ctx: ToolRunContext, audio_data: str, audio_format: str = "wav") -> EmotionAnalysisResult:
-        """Analyze emotion from audio data"""
+        """Analyze emotion from audio data with proper error handling"""
         try:
+            # Validate configuration first
+            if not self._use_mock:
+                self._validate_hume_config()
+            
             if self._use_mock:
                 return self._generate_mock_emotion_analysis(audio_data)
             
@@ -59,9 +73,14 @@ class HumeEmotionAnalysisTool(Tool):
             return self._analyze_with_hume_ai(audio_data, audio_format)
             
         except Exception as e:
-            logger.error(f"Error in emotion analysis: {str(e)}")
-            # Fallback to mock data on error
-            return self._generate_mock_emotion_analysis(audio_data)
+            logger.error(f"Emotion analysis failed: {str(e)}")
+            # Only fallback if explicitly allowed
+            if os.getenv('ALLOW_FALLBACK', 'false').lower() == 'true':
+                logger.warning("Falling back to mock data due to ALLOW_FALLBACK=true")
+                return self._generate_mock_emotion_analysis(audio_data)
+            else:
+                # Fail fast - don't hide errors with silent fallbacks
+                raise
     
     def _analyze_with_hume_ai(self, audio_data: str, audio_format: str) -> EmotionAnalysisResult:
         """Real Hume AI emotion analysis using official SDK"""
@@ -73,8 +92,25 @@ class HumeEmotionAnalysisTool(Tool):
             logger.warning("Hume AI SDK not available, falling back to direct API calls")
             return self._analyze_with_direct_api(audio_data, audio_format)
         except Exception as e:
-            logger.error(f"Hume SDK error: {str(e)}, falling back to mock")
-            return self._generate_mock_emotion_analysis(audio_data)
+            logger.error(f"Hume SDK error: {str(e)}")
+            # Only fallback if explicitly allowed
+            if os.getenv('ALLOW_FALLBACK', 'false').lower() == 'true':
+                return self._generate_mock_emotion_analysis(audio_data)
+            else:
+                raise
+    
+    def _validate_hume_config(self):
+        """Validate Hume configuration or fail loudly"""
+        if not self._hume_api_key:
+            from src.config import ConfigurationError
+            raise ConfigurationError(
+                "HUME_API_KEY required for emotion analysis. "
+                "Set in .env file or enable demo mode with DEMO_MODE=true"
+            )
+        
+        if not self._hume_secret_key:
+            from src.config import ConfigurationError
+            raise ConfigurationError("HUME_SECRET_KEY required for Hume AI integration")
     
     def _analyze_with_hume_sdk(self, audio_data: str, audio_format: str) -> EmotionAnalysisResult:
         """Use official Hume AI Python SDK"""
